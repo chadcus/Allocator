@@ -59,7 +59,7 @@ class Allocator {
         // ----
 
         char a[N];
-	size_type _closed;
+
         // -----
         // valid
         // -----
@@ -70,8 +70,19 @@ class Allocator {
          * <your documentation>
          */
         bool valid () const {
-            // <your code>
-            return true;}
+	    assert(N > 8);
+	    int sentinel;
+	    int posVal;
+
+            for(int i = 0; i < N; i += posVal + 8){
+            	sentinel = view(a[i]);
+		posVal = (sentinel < 0 ? -sentinel : sentinel);
+		if(posVal == 0 || (i + posVal + 8) > N || view(a[i + posVal + 4]) != sentinel)
+		    return false;
+		if(i + posVal + 7 == N - 1)
+		    return true;
+	    }
+            return false;}
 
         /**
          * O(1) in space
@@ -92,7 +103,8 @@ class Allocator {
          * throw a bad_alloc exception, if N is less than sizeof(T) + (2 * sizeof(int))
          */
         Allocator () {
-            // <your code>
+	    view(a[0]) = N - 8;
+	    view(a[N - 4]) = N - 8;
             assert(valid());}
 
         // Default copy, destructor, and copy assignment
