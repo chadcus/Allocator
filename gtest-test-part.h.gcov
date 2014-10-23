@@ -1,0 +1,188 @@
+        -:    0:Source:/usr/include/gtest/gtest-test-part.h
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// Copyright 2008, Google Inc.
+        -:    2:// All rights reserved.
+        -:    3://
+        -:    4:// Redistribution and use in source and binary forms, with or without
+        -:    5:// modification, are permitted provided that the following conditions are
+        -:    6:// met:
+        -:    7://
+        -:    8://     * Redistributions of source code must retain the above copyright
+        -:    9:// notice, this list of conditions and the following disclaimer.
+        -:   10://     * Redistributions in binary form must reproduce the above
+        -:   11:// copyright notice, this list of conditions and the following disclaimer
+        -:   12:// in the documentation and/or other materials provided with the
+        -:   13:// distribution.
+        -:   14://     * Neither the name of Google Inc. nor the names of its
+        -:   15:// contributors may be used to endorse or promote products derived from
+        -:   16:// this software without specific prior written permission.
+        -:   17://
+        -:   18:// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+        -:   19:// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+        -:   20:// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+        -:   21:// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+        -:   22:// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+        -:   23:// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+        -:   24:// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+        -:   25:// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+        -:   26:// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+        -:   27:// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        -:   28:// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        -:   29://
+        -:   30:// Author: mheule@google.com (Markus Heule)
+        -:   31://
+        -:   32:
+        -:   33:#ifndef GTEST_INCLUDE_GTEST_GTEST_TEST_PART_H_
+        -:   34:#define GTEST_INCLUDE_GTEST_GTEST_TEST_PART_H_
+        -:   35:
+        -:   36:#include <iosfwd>
+        -:   37:#include <vector>
+        -:   38:#include "gtest/internal/gtest-internal.h"
+        -:   39:#include "gtest/internal/gtest-string.h"
+        -:   40:
+        -:   41:namespace testing {
+        -:   42:
+        -:   43:// A copyable object representing the result of a test part (i.e. an
+        -:   44:// assertion or an explicit FAIL(), ADD_FAILURE(), or SUCCESS()).
+        -:   45://
+        -:   46:// Don't inherit from TestPartResult as its destructor is not virtual.
+        -:   47:class GTEST_API_ TestPartResult {
+        -:   48: public:
+        -:   49:  // The possible outcomes of a test part (i.e. an assertion or an
+        -:   50:  // explicit SUCCEED(), FAIL(), or ADD_FAILURE()).
+        -:   51:  enum Type {
+        -:   52:    kSuccess,          // Succeeded.
+        -:   53:    kNonFatalFailure,  // Failed but the test can continue.
+        -:   54:    kFatalFailure      // Failed and the test should be terminated.
+        -:   55:  };
+        -:   56:
+        -:   57:  // C'tor.  TestPartResult does NOT have a default constructor.
+        -:   58:  // Always use this constructor (with parameters) to create a
+        -:   59:  // TestPartResult object.
+        -:   60:  TestPartResult(Type a_type,
+        -:   61:                 const char* a_file_name,
+        -:   62:                 int a_line_number,
+        -:   63:                 const char* a_message)
+        -:   64:      : type_(a_type),
+        -:   65:        file_name_(a_file_name),
+        -:   66:        line_number_(a_line_number),
+        -:   67:        summary_(ExtractSummary(a_message)),
+        -:   68:        message_(a_message) {
+        -:   69:  }
+        -:   70:
+        -:   71:  // Gets the outcome of the test part.
+        -:   72:  Type type() const { return type_; }
+        -:   73:
+        -:   74:  // Gets the name of the source file where the test part took place, or
+        -:   75:  // NULL if it's unknown.
+        -:   76:  const char* file_name() const { return file_name_.c_str(); }
+        -:   77:
+        -:   78:  // Gets the line in the source file where the test part took place,
+        -:   79:  // or -1 if it's unknown.
+        -:   80:  int line_number() const { return line_number_; }
+        -:   81:
+        -:   82:  // Gets the summary of the failure message.
+        -:   83:  const char* summary() const { return summary_.c_str(); }
+        -:   84:
+        -:   85:  // Gets the message associated with the test part.
+        -:   86:  const char* message() const { return message_.c_str(); }
+        -:   87:
+        -:   88:  // Returns true iff the test part passed.
+        -:   89:  bool passed() const { return type_ == kSuccess; }
+        -:   90:
+        -:   91:  // Returns true iff the test part failed.
+        -:   92:  bool failed() const { return type_ != kSuccess; }
+        -:   93:
+        -:   94:  // Returns true iff the test part non-fatally failed.
+        -:   95:  bool nonfatally_failed() const { return type_ == kNonFatalFailure; }
+        -:   96:
+        -:   97:  // Returns true iff the test part fatally failed.
+        -:   98:  bool fatally_failed() const { return type_ == kFatalFailure; }
+        -:   99: private:
+        -:  100:  Type type_;
+        -:  101:
+        -:  102:  // Gets the summary of the failure message by omitting the stack
+        -:  103:  // trace in it.
+        -:  104:  static internal::String ExtractSummary(const char* message);
+        -:  105:
+        -:  106:  // The name of the source file where the test part took place, or
+        -:  107:  // NULL if the source file is unknown.
+        -:  108:  internal::String file_name_;
+        -:  109:  // The line in the source file where the test part took place, or -1
+        -:  110:  // if the line number is unknown.
+        -:  111:  int line_number_;
+        -:  112:  internal::String summary_;  // The test failure summary.
+        -:  113:  internal::String message_;  // The test failure message.
+        -:  114:};
+        -:  115:
+        -:  116:// Prints a TestPartResult object.
+        -:  117:std::ostream& operator<<(std::ostream& os, const TestPartResult& result);
+        -:  118:
+        -:  119:// An array of TestPartResult objects.
+        -:  120://
+        -:  121:// Don't inherit from TestPartResultArray as its destructor is not
+        -:  122:// virtual.
+        -:  123:class GTEST_API_ TestPartResultArray {
+        -:  124: public:
+        -:  125:  TestPartResultArray() {}
+        -:  126:
+        -:  127:  // Appends the given TestPartResult to the array.
+        -:  128:  void Append(const TestPartResult& result);
+        -:  129:
+        -:  130:  // Returns the TestPartResult at the given index (0-based).
+        -:  131:  const TestPartResult& GetTestPartResult(int index) const;
+        -:  132:
+        -:  133:  // Returns the number of TestPartResult objects in the array.
+        -:  134:  int size() const;
+        -:  135:
+        -:  136: private:
+        -:  137:  std::vector<TestPartResult> array_;
+        -:  138:
+        -:  139:  GTEST_DISALLOW_COPY_AND_ASSIGN_(TestPartResultArray);
+        -:  140:};
+        -:  141:
+        -:  142:// This interface knows how to report a test part result.
+        -:  143:class TestPartResultReporterInterface {
+        -:  144: public:
+function _ZN7testing31TestPartResultReporterInterfaceD0Ev called 0 returned 0% blocks executed 0%
+function _ZN7testing31TestPartResultReporterInterfaceD2Ev called 0 returned 0% blocks executed 0%
+    #####:  145:  virtual ~TestPartResultReporterInterface() {}
+call    0 never executed
+call    1 never executed
+branch  2 never executed
+branch  3 never executed
+call    4 never executed
+        -:  146:
+        -:  147:  virtual void ReportTestPartResult(const TestPartResult& result) = 0;
+        -:  148:};
+        -:  149:
+        -:  150:namespace internal {
+        -:  151:
+        -:  152:// This helper class is used by {ASSERT|EXPECT}_NO_FATAL_FAILURE to check if a
+        -:  153:// statement generates new fatal failures. To do so it registers itself as the
+        -:  154:// current test part result reporter. Besides checking if fatal failures were
+        -:  155:// reported, it only delegates the reporting to the former result reporter.
+        -:  156:// The original result reporter is restored in the destructor.
+        -:  157:// INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
+        -:  158:class GTEST_API_ HasNewFatalFailureHelper
+        -:  159:    : public TestPartResultReporterInterface {
+        -:  160: public:
+        -:  161:  HasNewFatalFailureHelper();
+        -:  162:  virtual ~HasNewFatalFailureHelper();
+        -:  163:  virtual void ReportTestPartResult(const TestPartResult& result);
+        -:  164:  bool has_new_fatal_failure() const { return has_new_fatal_failure_; }
+        -:  165: private:
+        -:  166:  bool has_new_fatal_failure_;
+        -:  167:  TestPartResultReporterInterface* original_reporter_;
+        -:  168:
+        -:  169:  GTEST_DISALLOW_COPY_AND_ASSIGN_(HasNewFatalFailureHelper);
+        -:  170:};
+        -:  171:
+        -:  172:}  // namespace internal
+        -:  173:
+        -:  174:}  // namespace testing
+        -:  175:
+        -:  176:#endif  // GTEST_INCLUDE_GTEST_GTEST_TEST_PART_H_

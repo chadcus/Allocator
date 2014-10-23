@@ -70,18 +70,19 @@ class Allocator {
          * <your documentation>
          */
         bool valid () const {
-	    assert(N > 8);
-	    int sentinel;
-	    int posVal;
+    	    assert(N > 8);
+    	    int sentinel = 0;
+    	    int posVal = 0;
 
             for(int i = 0; i < N; i += posVal + 8){
-            	sentinel = view(a[i]);
-		posVal = (sentinel < 0 ? -sentinel : sentinel);
-		if(posVal == 0 || (i + posVal + 8) > N || view(a[i + posVal + 4]) != sentinel)
-		    return false;
-		if(i + posVal + 7 == N - 1)
-		    return true;
-	    }
+                sentinel = view(i);
+                posVal = (sentinel < 0 ? -sentinel : sentinel);
+                if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
+                    return false;
+                if(i + posVal + 7 == N - 1)
+                    return true;
+    	    }
+            
             return false;}
 
         /**
@@ -103,8 +104,8 @@ class Allocator {
          * throw a bad_alloc exception, if N is less than sizeof(T) + (2 * sizeof(int))
          */
         Allocator () {
-	    view(a[0]) = N - 8;
-	    view(a[N - 4]) = N - 8;
+            view(0) = N - 8;
+            view(N - 4) = N - 8;
             assert(valid());}
 
         // Default copy, destructor, and copy assignment
@@ -125,9 +126,37 @@ class Allocator {
          * return 0, if allocation fails
          */
         pointer allocate (size_type n) {
-            // <your code>
+    	    if(n == 0)
+                return 0;
+    	    
+    	    int posVal = 0;
+    	    int aloBlocks = n * static_cast<int>(sizeof(T));
+    	    assert(aloBlocks > 0);
+
+    	    for(int i = 0; i < N; i += posVal + 8){
+                int& front_sentinel = view(i);
+                posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+                int& back_sentinel = view(i + posVal + 4);
+                if (front_sentinel == aloBlocks) {
+                    front_sentinel = -front_sentinel;
+                    back_sentinel = -back_sentinel;
+                    assert(valid());
+                    return reinterpret_cast<pointer>(&a[i+4]);
+                }else if(front_sentinel > 0 && front_sentinel >= static_cast<int>(sizeof(T)) + aloBlocks + 8){
+                    front_sentinel = -aloBlocks;
+                    view(i + aloBlocks + 4) = -aloBlocks;
+                    view(i + aloBlocks + 8) = back_sentinel - aloBlocks - 8;
+                    back_sentinel = back_sentinel - aloBlocks - 8;
+                    assert(valid());
+                    return reinterpret_cast<pointer>(&a[i+4]);
+                }else if (front_sentinel > 0 && front_sentinel >= aloBlocks) {
+                    front_sentinel = -front_sentinel;
+                    back_sentinel = -back_sentinel;
+                    assert(valid());
+                    return reinterpret_cast<pointer>(&a[i+4]);}
+    	    }
             assert(valid());
-            return 0;}                   // replace!
+            return 0;}
 
         // ---------
         // construct
@@ -152,8 +181,10 @@ class Allocator {
          * after deallocation adjacent free blocks must be coalesced
          * <your documentation>
          */
-        void deallocate (pointer p, size_type) {
-            // <your code>
+        void deallocate (pointer p, size_type = 0) {
+            // int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
+            // int posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+            // int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
             assert(valid());}
 
         // -------

@@ -1,0 +1,597 @@
+        -:    0:Source:/usr/include/c++/4.7/sstream
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// String based streams -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+        -:    4:// 2006, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+        -:    5://
+        -:    6:// This file is part of the GNU ISO C++ Library.  This library is free
+        -:    7:// software; you can redistribute it and/or modify it under the
+        -:    8:// terms of the GNU General Public License as published by the
+        -:    9:// Free Software Foundation; either version 3, or (at your option)
+        -:   10:// any later version.
+        -:   11:
+        -:   12:// This library is distributed in the hope that it will be useful,
+        -:   13:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   14:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   15:// GNU General Public License for more details.
+        -:   16:
+        -:   17:// Under Section 7 of GPL version 3, you are granted additional
+        -:   18:// permissions described in the GCC Runtime Library Exception, version
+        -:   19:// 3.1, as published by the Free Software Foundation.
+        -:   20:
+        -:   21:// You should have received a copy of the GNU General Public License and
+        -:   22:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   23:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   24:// <http://www.gnu.org/licenses/>.
+        -:   25:
+        -:   26:/** @file include/sstream
+        -:   27: *  This is a Standard C++ Library header.
+        -:   28: */
+        -:   29:
+        -:   30://
+        -:   31:// ISO C++ 14882: 27.7  String-based streams
+        -:   32://
+        -:   33:
+        -:   34:#ifndef _GLIBCXX_SSTREAM
+        -:   35:#define _GLIBCXX_SSTREAM 1
+        -:   36:
+        -:   37:#pragma GCC system_header
+        -:   38:
+        -:   39:#include <istream>
+        -:   40:#include <ostream>
+        -:   41:
+        -:   42:namespace std _GLIBCXX_VISIBILITY(default)
+        -:   43:{
+        -:   44:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:   45:
+        -:   46:  // [27.7.1] template class basic_stringbuf
+        -:   47:  /**
+        -:   48:   *  @brief  The actual work of input and output (for std::string).
+        -:   49:   *  @ingroup io
+        -:   50:   *
+        -:   51:   *  This class associates either or both of its input and output sequences
+        -:   52:   *  with a sequence of characters, which can be initialized from, or made
+        -:   53:   *  available as, a @c std::basic_string.  (Paraphrased from [27.7.1]/1.)
+        -:   54:   *
+        -:   55:   *  For this class, open modes (of type @c ios_base::openmode) have
+        -:   56:   *  @c in set if the input sequence can be read, and @c out set if the
+        -:   57:   *  output sequence can be written.
+        -:   58:  */
+        -:   59:  template<typename _CharT, typename _Traits, typename _Alloc>
+function _ZNSt15basic_stringbufIcSt11char_traitsIcESaIcEED0Ev called 0 returned 0% blocks executed 0%
+function _ZNSt15basic_stringbufIcSt11char_traitsIcESaIcEED2Ev called 0 returned 0% blocks executed 0%
+    #####:   60:    class basic_stringbuf : public basic_streambuf<_CharT, _Traits>
+call    0 never executed
+call    1 never executed
+call    2 never executed
+call    3 never executed
+branch  4 never executed
+branch  5 never executed
+call    6 never executed
+        -:   61:    {
+        -:   62:    public:
+        -:   63:      // Types:
+        -:   64:      typedef _CharT 					char_type;
+        -:   65:      typedef _Traits 					traits_type;
+        -:   66:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -:   67:      // 251. basic_stringbuf missing allocator_type
+        -:   68:      typedef _Alloc				       	allocator_type;
+        -:   69:      typedef typename traits_type::int_type 		int_type;
+        -:   70:      typedef typename traits_type::pos_type 		pos_type;
+        -:   71:      typedef typename traits_type::off_type 		off_type;
+        -:   72:
+        -:   73:      typedef basic_streambuf<char_type, traits_type>  	__streambuf_type;
+        -:   74:      typedef basic_string<char_type, _Traits, _Alloc> 	__string_type;
+        -:   75:      typedef typename __string_type::size_type		__size_type;
+        -:   76:
+        -:   77:    protected:
+        -:   78:      /// Place to stash in || out || in | out settings for current stringbuf.
+        -:   79:      ios_base::openmode 	_M_mode;
+        -:   80:
+        -:   81:      // Data Members:
+        -:   82:      __string_type 		_M_string;
+        -:   83:
+        -:   84:    public:
+        -:   85:      // Constructors:
+        -:   86:      /**
+        -:   87:       *  @brief  Starts with an empty string buffer.
+        -:   88:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:   89:       *
+        -:   90:       *  The default constructor initializes the parent class using its
+        -:   91:       *  own default ctor.
+        -:   92:      */
+        -:   93:      explicit
+        -:   94:      basic_stringbuf(ios_base::openmode __mode = ios_base::in | ios_base::out)
+        -:   95:      : __streambuf_type(), _M_mode(__mode), _M_string()
+        -:   96:      { }
+        -:   97:
+        -:   98:      /**
+        -:   99:       *  @brief  Starts with an existing string buffer.
+        -:  100:       *  @param  __str  A string to copy as a starting buffer.
+        -:  101:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:  102:       *
+        -:  103:       *  This constructor initializes the parent class using its
+        -:  104:       *  own default ctor.
+        -:  105:      */
+        -:  106:      explicit
+        -:  107:      basic_stringbuf(const __string_type& __str,
+        -:  108:		      ios_base::openmode __mode = ios_base::in | ios_base::out)
+        -:  109:      : __streambuf_type(), _M_mode(), _M_string(__str.data(), __str.size())
+        -:  110:      { _M_stringbuf_init(__mode); }
+        -:  111:
+        -:  112:      // Get and set:
+        -:  113:      /**
+        -:  114:       *  @brief  Copying out the string buffer.
+        -:  115:       *  @return  A copy of one of the underlying sequences.
+        -:  116:       *
+        -:  117:       *  <em>If the buffer is only created in input mode, the underlying
+        -:  118:       *  character sequence is equal to the input sequence; otherwise, it
+        -:  119:       *  is equal to the output sequence.</em> [27.7.1.2]/1
+        -:  120:      */
+        -:  121:      __string_type
+        -:  122:      str() const
+        -:  123:      {
+        -:  124:	__string_type __ret;
+        -:  125:	if (this->pptr())
+        -:  126:	  {
+        -:  127:	    // The current egptr() may not be the actual string end.
+        -:  128:	    if (this->pptr() > this->egptr())
+        -:  129:	      __ret = __string_type(this->pbase(), this->pptr());
+        -:  130:	    else
+        -:  131: 	      __ret = __string_type(this->pbase(), this->egptr());
+        -:  132:	  }
+        -:  133:	else
+        -:  134:	  __ret = _M_string;
+        -:  135:	return __ret;
+        -:  136:      }
+        -:  137:
+        -:  138:      /**
+        -:  139:       *  @brief  Setting a new buffer.
+        -:  140:       *  @param  __s  The string to use as a new sequence.
+        -:  141:       *
+        -:  142:       *  Deallocates any previous stored sequence, then copies @a s to
+        -:  143:       *  use as a new one.
+        -:  144:      */
+        -:  145:      void
+        -:  146:      str(const __string_type& __s)
+        -:  147:      {
+        -:  148:	// Cannot use _M_string = __s, since v3 strings are COW.
+        -:  149:	_M_string.assign(__s.data(), __s.size());
+        -:  150:	_M_stringbuf_init(_M_mode);
+        -:  151:      }
+        -:  152:
+        -:  153:    protected:
+        -:  154:      // Common initialization code goes here.
+        -:  155:      void
+        -:  156:      _M_stringbuf_init(ios_base::openmode __mode)
+        -:  157:      {
+        -:  158:	_M_mode = __mode;
+        -:  159:	__size_type __len = 0;
+        -:  160:	if (_M_mode & (ios_base::ate | ios_base::app))
+        -:  161:	  __len = _M_string.size();
+        -:  162:	_M_sync(const_cast<char_type*>(_M_string.data()), 0, __len);
+        -:  163:      }
+        -:  164:
+        -:  165:      virtual streamsize
+        -:  166:      showmanyc()
+        -:  167:      { 
+        -:  168:	streamsize __ret = -1;
+        -:  169:	if (_M_mode & ios_base::in)
+        -:  170:	  {
+        -:  171:	    _M_update_egptr();
+        -:  172:	    __ret = this->egptr() - this->gptr();
+        -:  173:	  }
+        -:  174:	return __ret;
+        -:  175:      }
+        -:  176:
+        -:  177:      virtual int_type
+        -:  178:      underflow();
+        -:  179:
+        -:  180:      virtual int_type
+        -:  181:      pbackfail(int_type __c = traits_type::eof());
+        -:  182:
+        -:  183:      virtual int_type
+        -:  184:      overflow(int_type __c = traits_type::eof());
+        -:  185:
+        -:  186:      /**
+        -:  187:       *  @brief  Manipulates the buffer.
+        -:  188:       *  @param  __s  Pointer to a buffer area.
+        -:  189:       *  @param  __n  Size of @a __s.
+        -:  190:       *  @return  @c this
+        -:  191:       *
+        -:  192:       *  If no buffer has already been created, and both @a __s and @a __n are
+        -:  193:       *  non-zero, then @c __s is used as a buffer; see
+        -:  194:       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt11ch25s02.html
+        -:  195:       *  for more.
+        -:  196:      */
+        -:  197:      virtual __streambuf_type*
+        -:  198:      setbuf(char_type* __s, streamsize __n)
+        -:  199:      {
+        -:  200:	if (__s && __n >= 0)
+        -:  201:	  {
+        -:  202:	    // This is implementation-defined behavior, and assumes
+        -:  203:	    // that an external char_type array of length __n exists
+        -:  204:	    // and has been pre-allocated. If this is not the case,
+        -:  205:	    // things will quickly blow up.
+        -:  206:	    
+        -:  207:	    // Step 1: Destroy the current internal array.
+        -:  208:	    _M_string.clear();
+        -:  209:	    
+        -:  210:	    // Step 2: Use the external array.
+        -:  211:	    _M_sync(__s, __n, 0);
+        -:  212:	  }
+        -:  213:	return this;
+        -:  214:      }
+        -:  215:
+        -:  216:      virtual pos_type
+        -:  217:      seekoff(off_type __off, ios_base::seekdir __way,
+        -:  218:	      ios_base::openmode __mode = ios_base::in | ios_base::out);
+        -:  219:
+        -:  220:      virtual pos_type
+        -:  221:      seekpos(pos_type __sp,
+        -:  222:	      ios_base::openmode __mode = ios_base::in | ios_base::out);
+        -:  223:
+        -:  224:      // Internal function for correctly updating the internal buffer
+        -:  225:      // for a particular _M_string, due to initialization or re-sizing
+        -:  226:      // of an existing _M_string.
+        -:  227:      void
+        -:  228:      _M_sync(char_type* __base, __size_type __i, __size_type __o);
+        -:  229:
+        -:  230:      // Internal function for correctly updating egptr() to the actual
+        -:  231:      // string end.
+        -:  232:      void
+        -:  233:      _M_update_egptr()
+        -:  234:      {
+        -:  235:	const bool __testin = _M_mode & ios_base::in;
+        -:  236:	if (this->pptr() && this->pptr() > this->egptr())
+        -:  237:	  {
+        -:  238:	    if (__testin)
+        -:  239:	      this->setg(this->eback(), this->gptr(), this->pptr());
+        -:  240:	    else
+        -:  241:	      this->setg(this->pptr(), this->pptr(), this->pptr());
+        -:  242:	  }
+        -:  243:      }
+        -:  244:
+        -:  245:      // Works around the issue with pbump, part of the protected
+        -:  246:      // interface of basic_streambuf, taking just an int.
+        -:  247:      void
+        -:  248:      _M_pbump(char_type* __pbeg, char_type* __pend, off_type __off);
+        -:  249:    };
+        -:  250:
+        -:  251:
+        -:  252:  // [27.7.2] Template class basic_istringstream
+        -:  253:  /**
+        -:  254:   *  @brief  Controlling input for std::string.
+        -:  255:   *  @ingroup io
+        -:  256:   *
+        -:  257:   *  This class supports reading from objects of type std::basic_string,
+        -:  258:   *  using the inherited functions from std::basic_istream.  To control
+        -:  259:   *  the associated sequence, an instance of std::basic_stringbuf is used,
+        -:  260:   *  which this page refers to as @c sb.
+        -:  261:  */
+        -:  262:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -:  263:    class basic_istringstream : public basic_istream<_CharT, _Traits>
+        -:  264:    {
+        -:  265:    public:
+        -:  266:      // Types:
+        -:  267:      typedef _CharT 					char_type;
+        -:  268:      typedef _Traits 					traits_type;
+        -:  269:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -:  270:      // 251. basic_stringbuf missing allocator_type
+        -:  271:      typedef _Alloc				       	allocator_type;
+        -:  272:      typedef typename traits_type::int_type 		int_type;
+        -:  273:      typedef typename traits_type::pos_type 		pos_type;
+        -:  274:      typedef typename traits_type::off_type 		off_type;
+        -:  275:
+        -:  276:      // Non-standard types:
+        -:  277:      typedef basic_string<_CharT, _Traits, _Alloc> 	__string_type;
+        -:  278:      typedef basic_stringbuf<_CharT, _Traits, _Alloc> 	__stringbuf_type;
+        -:  279:      typedef basic_istream<char_type, traits_type>	__istream_type;
+        -:  280:
+        -:  281:    private:
+        -:  282:      __stringbuf_type	_M_stringbuf;
+        -:  283:
+        -:  284:    public:
+        -:  285:      // Constructors:
+        -:  286:      /**
+        -:  287:       *  @brief  Default constructor starts with an empty string buffer.
+        -:  288:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:  289:       *
+        -:  290:       *  @c ios_base::in is automatically included in @a __mode.
+        -:  291:       *
+        -:  292:       *  Initializes @c sb using @c __mode|in, and passes @c &sb to the base
+        -:  293:       *  class initializer.  Does not allocate any buffer.
+        -:  294:       *
+        -:  295:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  296:       *  string class does its own memory management.
+        -:  297:      */
+        -:  298:      explicit
+        -:  299:      basic_istringstream(ios_base::openmode __mode = ios_base::in)
+        -:  300:      : __istream_type(), _M_stringbuf(__mode | ios_base::in)
+        -:  301:      { this->init(&_M_stringbuf); }
+        -:  302:
+        -:  303:      /**
+        -:  304:       *  @brief  Starts with an existing string buffer.
+        -:  305:       *  @param  __str  A string to copy as a starting buffer.
+        -:  306:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:  307:       *
+        -:  308:       *  @c ios_base::in is automatically included in @a mode.
+        -:  309:       *
+        -:  310:       *  Initializes @c sb using @a str and @c mode|in, and passes @c &sb
+        -:  311:       *  to the base class initializer.
+        -:  312:       *
+        -:  313:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  314:       *  string class does its own memory management.
+        -:  315:      */
+        -:  316:      explicit
+        -:  317:      basic_istringstream(const __string_type& __str,
+        -:  318:			  ios_base::openmode __mode = ios_base::in)
+        -:  319:      : __istream_type(), _M_stringbuf(__str, __mode | ios_base::in)
+        -:  320:      { this->init(&_M_stringbuf); }
+        -:  321:
+        -:  322:      /**
+        -:  323:       *  @brief  The destructor does nothing.
+        -:  324:       *
+        -:  325:       *  The buffer is deallocated by the stringbuf object, not the
+        -:  326:       *  formatting stream.
+        -:  327:      */
+        -:  328:      ~basic_istringstream()
+        -:  329:      { }
+        -:  330:
+        -:  331:      // Members:
+        -:  332:      /**
+        -:  333:       *  @brief  Accessing the underlying buffer.
+        -:  334:       *  @return  The current basic_stringbuf buffer.
+        -:  335:       *
+        -:  336:       *  This hides both signatures of std::basic_ios::rdbuf().
+        -:  337:      */
+        -:  338:      __stringbuf_type*
+        -:  339:      rdbuf() const
+        -:  340:      { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
+        -:  341:
+        -:  342:      /**
+        -:  343:       *  @brief  Copying out the string buffer.
+        -:  344:       *  @return  @c rdbuf()->str()
+        -:  345:      */
+        -:  346:      __string_type
+        -:  347:      str() const
+        -:  348:      { return _M_stringbuf.str(); }
+        -:  349:
+        -:  350:      /**
+        -:  351:       *  @brief  Setting a new buffer.
+        -:  352:       *  @param  __s  The string to use as a new sequence.
+        -:  353:       *
+        -:  354:       *  Calls @c rdbuf()->str(s).
+        -:  355:      */
+        -:  356:      void
+        -:  357:      str(const __string_type& __s)
+        -:  358:      { _M_stringbuf.str(__s); }
+        -:  359:    };
+        -:  360:
+        -:  361:
+        -:  362:  // [27.7.3] Template class basic_ostringstream
+        -:  363:  /**
+        -:  364:   *  @brief  Controlling output for std::string.
+        -:  365:   *  @ingroup io
+        -:  366:   *
+        -:  367:   *  This class supports writing to objects of type std::basic_string,
+        -:  368:   *  using the inherited functions from std::basic_ostream.  To control
+        -:  369:   *  the associated sequence, an instance of std::basic_stringbuf is used,
+        -:  370:   *  which this page refers to as @c sb.
+        -:  371:  */
+        -:  372:  template <typename _CharT, typename _Traits, typename _Alloc>
+        -:  373:    class basic_ostringstream : public basic_ostream<_CharT, _Traits>
+        -:  374:    {
+        -:  375:    public:
+        -:  376:      // Types:
+        -:  377:      typedef _CharT 					char_type;
+        -:  378:      typedef _Traits 					traits_type;
+        -:  379:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -:  380:      // 251. basic_stringbuf missing allocator_type
+        -:  381:      typedef _Alloc				       	allocator_type;
+        -:  382:      typedef typename traits_type::int_type 		int_type;
+        -:  383:      typedef typename traits_type::pos_type 		pos_type;
+        -:  384:      typedef typename traits_type::off_type 		off_type;
+        -:  385:
+        -:  386:      // Non-standard types:
+        -:  387:      typedef basic_string<_CharT, _Traits, _Alloc> 	__string_type;
+        -:  388:      typedef basic_stringbuf<_CharT, _Traits, _Alloc> 	__stringbuf_type;
+        -:  389:      typedef basic_ostream<char_type, traits_type>	__ostream_type;
+        -:  390:
+        -:  391:    private:
+        -:  392:      __stringbuf_type	_M_stringbuf;
+        -:  393:
+        -:  394:    public:
+        -:  395:      // Constructors/destructor:
+        -:  396:      /**
+        -:  397:       *  @brief  Default constructor starts with an empty string buffer.
+        -:  398:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:  399:       *
+        -:  400:       *  @c ios_base::out is automatically included in @a mode.
+        -:  401:       *
+        -:  402:       *  Initializes @c sb using @c mode|out, and passes @c &sb to the base
+        -:  403:       *  class initializer.  Does not allocate any buffer.
+        -:  404:       *
+        -:  405:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  406:       *  string class does its own memory management.
+        -:  407:      */
+        -:  408:      explicit
+        -:  409:      basic_ostringstream(ios_base::openmode __mode = ios_base::out)
+        -:  410:      : __ostream_type(), _M_stringbuf(__mode | ios_base::out)
+        -:  411:      { this->init(&_M_stringbuf); }
+        -:  412:
+        -:  413:      /**
+        -:  414:       *  @brief  Starts with an existing string buffer.
+        -:  415:       *  @param  __str  A string to copy as a starting buffer.
+        -:  416:       *  @param  __mode  Whether the buffer can read, or write, or both.
+        -:  417:       *
+        -:  418:       *  @c ios_base::out is automatically included in @a mode.
+        -:  419:       *
+        -:  420:       *  Initializes @c sb using @a str and @c mode|out, and passes @c &sb
+        -:  421:       *  to the base class initializer.
+        -:  422:       *
+        -:  423:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  424:       *  string class does its own memory management.
+        -:  425:      */
+        -:  426:      explicit
+        -:  427:      basic_ostringstream(const __string_type& __str,
+        -:  428:			  ios_base::openmode __mode = ios_base::out)
+        -:  429:      : __ostream_type(), _M_stringbuf(__str, __mode | ios_base::out)
+        -:  430:      { this->init(&_M_stringbuf); }
+        -:  431:
+        -:  432:      /**
+        -:  433:       *  @brief  The destructor does nothing.
+        -:  434:       *
+        -:  435:       *  The buffer is deallocated by the stringbuf object, not the
+        -:  436:       *  formatting stream.
+        -:  437:      */
+        -:  438:      ~basic_ostringstream()
+        -:  439:      { }
+        -:  440:
+        -:  441:      // Members:
+        -:  442:      /**
+        -:  443:       *  @brief  Accessing the underlying buffer.
+        -:  444:       *  @return  The current basic_stringbuf buffer.
+        -:  445:       *
+        -:  446:       *  This hides both signatures of std::basic_ios::rdbuf().
+        -:  447:      */
+        -:  448:      __stringbuf_type*
+        -:  449:      rdbuf() const
+        -:  450:      { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
+        -:  451:
+        -:  452:      /**
+        -:  453:       *  @brief  Copying out the string buffer.
+        -:  454:       *  @return  @c rdbuf()->str()
+        -:  455:      */
+        -:  456:      __string_type
+        -:  457:      str() const
+        -:  458:      { return _M_stringbuf.str(); }
+        -:  459:
+        -:  460:      /**
+        -:  461:       *  @brief  Setting a new buffer.
+        -:  462:       *  @param  __s  The string to use as a new sequence.
+        -:  463:       *
+        -:  464:       *  Calls @c rdbuf()->str(s).
+        -:  465:      */
+        -:  466:      void
+        -:  467:      str(const __string_type& __s)
+        -:  468:      { _M_stringbuf.str(__s); }
+        -:  469:    };
+        -:  470:
+        -:  471:
+        -:  472:  // [27.7.4] Template class basic_stringstream
+        -:  473:  /**
+        -:  474:   *  @brief  Controlling input and output for std::string.
+        -:  475:   *  @ingroup io
+        -:  476:   *
+        -:  477:   *  This class supports reading from and writing to objects of type
+        -:  478:   *  std::basic_string, using the inherited functions from
+        -:  479:   *  std::basic_iostream.  To control the associated sequence, an instance
+        -:  480:   *  of std::basic_stringbuf is used, which this page refers to as @c sb.
+        -:  481:  */
+        -:  482:  template <typename _CharT, typename _Traits, typename _Alloc>
+        -:  483:    class basic_stringstream : public basic_iostream<_CharT, _Traits>
+        -:  484:    {
+        -:  485:    public:
+        -:  486:      // Types:
+        -:  487:      typedef _CharT 					char_type;
+        -:  488:      typedef _Traits 					traits_type;
+        -:  489:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -:  490:      // 251. basic_stringbuf missing allocator_type
+        -:  491:      typedef _Alloc				       	allocator_type;
+        -:  492:      typedef typename traits_type::int_type 		int_type;
+        -:  493:      typedef typename traits_type::pos_type 		pos_type;
+        -:  494:      typedef typename traits_type::off_type 		off_type;
+        -:  495:
+        -:  496:      // Non-standard Types:
+        -:  497:      typedef basic_string<_CharT, _Traits, _Alloc> 	__string_type;
+        -:  498:      typedef basic_stringbuf<_CharT, _Traits, _Alloc> 	__stringbuf_type;
+        -:  499:      typedef basic_iostream<char_type, traits_type>	__iostream_type;
+        -:  500:
+        -:  501:    private:
+        -:  502:      __stringbuf_type	_M_stringbuf;
+        -:  503:
+        -:  504:    public:
+        -:  505:      // Constructors/destructors
+        -:  506:      /**
+        -:  507:       *  @brief  Default constructor starts with an empty string buffer.
+        -:  508:       *  @param  __m  Whether the buffer can read, or write, or both.
+        -:  509:       *
+        -:  510:       *  Initializes @c sb using the mode from @c __m, and passes @c
+        -:  511:       *  &sb to the base class initializer.  Does not allocate any
+        -:  512:       *  buffer.
+        -:  513:       *
+        -:  514:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  515:       *  string class does its own memory management.
+        -:  516:      */
+        -:  517:      explicit
+        -:  518:      basic_stringstream(ios_base::openmode __m = ios_base::out | ios_base::in)
+        -:  519:      : __iostream_type(), _M_stringbuf(__m)
+        -:  520:      { this->init(&_M_stringbuf); }
+        -:  521:
+        -:  522:      /**
+        -:  523:       *  @brief  Starts with an existing string buffer.
+        -:  524:       *  @param  __str  A string to copy as a starting buffer.
+        -:  525:       *  @param  __m  Whether the buffer can read, or write, or both.
+        -:  526:       *
+        -:  527:       *  Initializes @c sb using @a __str and @c __m, and passes @c &sb
+        -:  528:       *  to the base class initializer.
+        -:  529:       *
+        -:  530:       *  That's a lie.  We initialize the base class with NULL, because the
+        -:  531:       *  string class does its own memory management.
+        -:  532:      */
+        -:  533:      explicit
+        -:  534:      basic_stringstream(const __string_type& __str,
+        -:  535:			 ios_base::openmode __m = ios_base::out | ios_base::in)
+        -:  536:      : __iostream_type(), _M_stringbuf(__str, __m)
+        -:  537:      { this->init(&_M_stringbuf); }
+        -:  538:
+        -:  539:      /**
+        -:  540:       *  @brief  The destructor does nothing.
+        -:  541:       *
+        -:  542:       *  The buffer is deallocated by the stringbuf object, not the
+        -:  543:       *  formatting stream.
+        -:  544:      */
+        -:  545:      ~basic_stringstream()
+        -:  546:      { }
+        -:  547:
+        -:  548:      // Members:
+        -:  549:      /**
+        -:  550:       *  @brief  Accessing the underlying buffer.
+        -:  551:       *  @return  The current basic_stringbuf buffer.
+        -:  552:       *
+        -:  553:       *  This hides both signatures of std::basic_ios::rdbuf().
+        -:  554:      */
+        -:  555:      __stringbuf_type*
+        -:  556:      rdbuf() const
+        -:  557:      { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
+        -:  558:
+        -:  559:      /**
+        -:  560:       *  @brief  Copying out the string buffer.
+        -:  561:       *  @return  @c rdbuf()->str()
+        -:  562:      */
+        -:  563:      __string_type
+        -:  564:      str() const
+        -:  565:      { return _M_stringbuf.str(); }
+        -:  566:
+        -:  567:      /**
+        -:  568:       *  @brief  Setting a new buffer.
+        -:  569:       *  @param  __s  The string to use as a new sequence.
+        -:  570:       *
+        -:  571:       *  Calls @c rdbuf()->str(s).
+        -:  572:      */
+        -:  573:      void
+        -:  574:      str(const __string_type& __s)
+        -:  575:      { _M_stringbuf.str(__s); }
+        -:  576:    };
+        -:  577:
+        -:  578:_GLIBCXX_END_NAMESPACE_VERSION
+        -:  579:} // namespace
+        -:  580:
+        -:  581:#include <bits/sstream.tcc>
+        -:  582:
+        -:  583:#endif /* _GLIBCXX_SSTREAM */

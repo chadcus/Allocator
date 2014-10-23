@@ -1,0 +1,3111 @@
+        -:    0:Source:/usr/include/c++/4.7/bits/basic_string.h
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// Components for manipulating sequences of characters -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+        -:    4:// 2006, 2007, 2008, 2009, 2010, 2011
+        -:    5:// Free Software Foundation, Inc.
+        -:    6://
+        -:    7:// This file is part of the GNU ISO C++ Library.  This library is free
+        -:    8:// software; you can redistribute it and/or modify it under the
+        -:    9:// terms of the GNU General Public License as published by the
+        -:   10:// Free Software Foundation; either version 3, or (at your option)
+        -:   11:// any later version.
+        -:   12:
+        -:   13:// This library is distributed in the hope that it will be useful,
+        -:   14:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   15:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   16:// GNU General Public License for more details.
+        -:   17:
+        -:   18:// Under Section 7 of GPL version 3, you are granted additional
+        -:   19:// permissions described in the GCC Runtime Library Exception, version
+        -:   20:// 3.1, as published by the Free Software Foundation.
+        -:   21:
+        -:   22:// You should have received a copy of the GNU General Public License and
+        -:   23:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   24:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   25:// <http://www.gnu.org/licenses/>.
+        -:   26:
+        -:   27:/** @file bits/basic_string.h
+        -:   28: *  This is an internal header file, included by other library headers.
+        -:   29: *  Do not attempt to use it directly. @headername{string}
+        -:   30: */
+        -:   31:
+        -:   32://
+        -:   33:// ISO C++ 14882: 21 Strings library
+        -:   34://
+        -:   35:
+        -:   36:#ifndef _BASIC_STRING_H
+        -:   37:#define _BASIC_STRING_H 1
+        -:   38:
+        -:   39:#pragma GCC system_header
+        -:   40:
+        -:   41:#include <ext/atomicity.h>
+        -:   42:#include <debug/debug.h>
+        -:   43:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:   44:#include <initializer_list>
+        -:   45:#endif
+        -:   46:
+        -:   47:namespace std _GLIBCXX_VISIBILITY(default)
+        -:   48:{
+        -:   49:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:   50:
+        -:   51:  /**
+        -:   52:   *  @class basic_string basic_string.h <string>
+        -:   53:   *  @brief  Managing sequences of characters and character-like objects.
+        -:   54:   *
+        -:   55:   *  @ingroup strings
+        -:   56:   *  @ingroup sequences
+        -:   57:   *
+        -:   58:   *  Meets the requirements of a <a href="tables.html#65">container</a>, a
+        -:   59:   *  <a href="tables.html#66">reversible container</a>, and a
+        -:   60:   *  <a href="tables.html#67">sequence</a>.  Of the
+        -:   61:   *  <a href="tables.html#68">optional sequence requirements</a>, only
+        -:   62:   *  @c push_back, @c at, and @c %array access are supported.
+        -:   63:   *
+        -:   64:   *  @doctodo
+        -:   65:   *
+        -:   66:   *
+        -:   67:   *  Documentation?  What's that?
+        -:   68:   *  Nathan Myers <ncm@cantrip.org>.
+        -:   69:   *
+        -:   70:   *  A string looks like this:
+        -:   71:   *
+        -:   72:   *  @code
+        -:   73:   *                                        [_Rep]
+        -:   74:   *                                        _M_length
+        -:   75:   *   [basic_string<char_type>]            _M_capacity
+        -:   76:   *   _M_dataplus                          _M_refcount
+        -:   77:   *   _M_p ---------------->               unnamed array of char_type
+        -:   78:   *  @endcode
+        -:   79:   *
+        -:   80:   *  Where the _M_p points to the first character in the string, and
+        -:   81:   *  you cast it to a pointer-to-_Rep and subtract 1 to get a
+        -:   82:   *  pointer to the header.
+        -:   83:   *
+        -:   84:   *  This approach has the enormous advantage that a string object
+        -:   85:   *  requires only one allocation.  All the ugliness is confined
+        -:   86:   *  within a single %pair of inline functions, which each compile to
+        -:   87:   *  a single @a add instruction: _Rep::_M_data(), and
+        -:   88:   *  string::_M_rep(); and the allocation function which gets a
+        -:   89:   *  block of raw bytes and with room enough and constructs a _Rep
+        -:   90:   *  object at the front.
+        -:   91:   *
+        -:   92:   *  The reason you want _M_data pointing to the character %array and
+        -:   93:   *  not the _Rep is so that the debugger can see the string
+        -:   94:   *  contents. (Probably we should add a non-inline member to get
+        -:   95:   *  the _Rep for the debugger to use, so users can check the actual
+        -:   96:   *  string length.)
+        -:   97:   *
+        -:   98:   *  Note that the _Rep object is a POD so that you can have a
+        -:   99:   *  static <em>empty string</em> _Rep object already @a constructed before
+        -:  100:   *  static constructors have run.  The reference-count encoding is
+        -:  101:   *  chosen so that a 0 indicates one reference, so you never try to
+        -:  102:   *  destroy the empty-string _Rep object.
+        -:  103:   *
+        -:  104:   *  All but the last paragraph is considered pretty conventional
+        -:  105:   *  for a C++ string implementation.
+        -:  106:  */
+        -:  107:  // 21.3  Template class basic_string
+        -:  108:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -:  109:    class basic_string
+        -:  110:    {
+        -:  111:      typedef typename _Alloc::template rebind<_CharT>::other _CharT_alloc_type;
+        -:  112:
+        -:  113:      // Types:
+        -:  114:    public:
+        -:  115:      typedef _Traits					    traits_type;
+        -:  116:      typedef typename _Traits::char_type		    value_type;
+        -:  117:      typedef _Alloc					    allocator_type;
+        -:  118:      typedef typename _CharT_alloc_type::size_type	    size_type;
+        -:  119:      typedef typename _CharT_alloc_type::difference_type   difference_type;
+        -:  120:      typedef typename _CharT_alloc_type::reference	    reference;
+        -:  121:      typedef typename _CharT_alloc_type::const_reference   const_reference;
+        -:  122:      typedef typename _CharT_alloc_type::pointer	    pointer;
+        -:  123:      typedef typename _CharT_alloc_type::const_pointer	    const_pointer;
+        -:  124:      typedef __gnu_cxx::__normal_iterator<pointer, basic_string>  iterator;
+        -:  125:      typedef __gnu_cxx::__normal_iterator<const_pointer, basic_string>
+        -:  126:                                                            const_iterator;
+        -:  127:      typedef std::reverse_iterator<const_iterator>	const_reverse_iterator;
+        -:  128:      typedef std::reverse_iterator<iterator>		    reverse_iterator;
+        -:  129:
+        -:  130:    private:
+        -:  131:      // _Rep: string representation
+        -:  132:      //   Invariants:
+        -:  133:      //   1. String really contains _M_length + 1 characters: due to 21.3.4
+        -:  134:      //      must be kept null-terminated.
+        -:  135:      //   2. _M_capacity >= _M_length
+        -:  136:      //      Allocated memory is always (_M_capacity + 1) * sizeof(_CharT).
+        -:  137:      //   3. _M_refcount has three states:
+        -:  138:      //      -1: leaked, one reference, no ref-copies allowed, non-const.
+        -:  139:      //       0: one reference, non-const.
+        -:  140:      //     n>0: n + 1 references, operations require a lock, const.
+        -:  141:      //   4. All fields==0 is an empty string, given the extra storage
+        -:  142:      //      beyond-the-end for a null terminator; thus, the shared
+        -:  143:      //      empty string representation needs no constructor.
+        -:  144:
+        -:  145:      struct _Rep_base
+        -:  146:      {
+        -:  147:	size_type		_M_length;
+        -:  148:	size_type		_M_capacity;
+        -:  149:	_Atomic_word		_M_refcount;
+        -:  150:      };
+        -:  151:
+        -:  152:      struct _Rep : _Rep_base
+        -:  153:      {
+        -:  154:	// Types:
+        -:  155:	typedef typename _Alloc::template rebind<char>::other _Raw_bytes_alloc;
+        -:  156:
+        -:  157:	// (Public) Data members:
+        -:  158:
+        -:  159:	// The maximum number of individual char_type elements of an
+        -:  160:	// individual string is determined by _S_max_size. This is the
+        -:  161:	// value that will be returned by max_size().  (Whereas npos
+        -:  162:	// is the maximum number of bytes the allocator can allocate.)
+        -:  163:	// If one was to divvy up the theoretical largest size string,
+        -:  164:	// with a terminating character and m _CharT elements, it'd
+        -:  165:	// look like this:
+        -:  166:	// npos = sizeof(_Rep) + (m * sizeof(_CharT)) + sizeof(_CharT)
+        -:  167:	// Solving for m:
+        -:  168:	// m = ((npos - sizeof(_Rep))/sizeof(CharT)) - 1
+        -:  169:	// In addition, this implementation quarters this amount.
+        -:  170:	static const size_type	_S_max_size;
+        -:  171:	static const _CharT	_S_terminal;
+        -:  172:
+        -:  173:	// The following storage is init'd to 0 by the linker, resulting
+        -:  174:        // (carefully) in an empty string with one reference.
+        -:  175:        static size_type _S_empty_rep_storage[];
+        -:  176:
+        -:  177:        static _Rep&
+        -:  178:        _S_empty_rep()
+        -:  179:        { 
+        -:  180:	  // NB: Mild hack to avoid strict-aliasing warnings.  Note that
+        -:  181:	  // _S_empty_rep_storage is never modified and the punning should
+        -:  182:	  // be reasonably safe in this case.
+        -:  183:	  void* __p = reinterpret_cast<void*>(&_S_empty_rep_storage);
+        -:  184:	  return *reinterpret_cast<_Rep*>(__p);
+        -:  185:	}
+        -:  186:
+        -:  187:        bool
+        -:  188:	_M_is_leaked() const
+        -:  189:        { return this->_M_refcount < 0; }
+        -:  190:
+        -:  191:        bool
+        -:  192:	_M_is_shared() const
+        -:  193:        { return this->_M_refcount > 0; }
+        -:  194:
+        -:  195:        void
+        -:  196:	_M_set_leaked()
+        -:  197:        { this->_M_refcount = -1; }
+        -:  198:
+        -:  199:        void
+        -:  200:	_M_set_sharable()
+        -:  201:        { this->_M_refcount = 0; }
+        -:  202:
+        -:  203:	void
+        -:  204:	_M_set_length_and_sharable(size_type __n)
+        -:  205:	{
+        -:  206:#if _GLIBCXX_FULLY_DYNAMIC_STRING == 0
+        -:  207:	  if (__builtin_expect(this != &_S_empty_rep(), false))
+        -:  208:#endif
+        -:  209:	    {
+        -:  210:	      this->_M_set_sharable();  // One reference.
+        -:  211:	      this->_M_length = __n;
+        -:  212:	      traits_type::assign(this->_M_refdata()[__n], _S_terminal);
+        -:  213:	      // grrr. (per 21.3.4)
+        -:  214:	      // You cannot leave those LWG people alone for a second.
+        -:  215:	    }
+        -:  216:	}
+        -:  217:
+        -:  218:	_CharT*
+        -:  219:	_M_refdata() throw()
+        -:  220:	{ return reinterpret_cast<_CharT*>(this + 1); }
+        -:  221:
+        -:  222:	_CharT*
+        -:  223:	_M_grab(const _Alloc& __alloc1, const _Alloc& __alloc2)
+        -:  224:	{
+        -:  225:	  return (!_M_is_leaked() && __alloc1 == __alloc2)
+        -:  226:	          ? _M_refcopy() : _M_clone(__alloc1);
+        -:  227:	}
+        -:  228:
+        -:  229:	// Create & Destroy
+        -:  230:	static _Rep*
+        -:  231:	_S_create(size_type, size_type, const _Alloc&);
+        -:  232:
+        -:  233:	void
+        -:  234:	_M_dispose(const _Alloc& __a)
+        -:  235:	{
+        -:  236:#if _GLIBCXX_FULLY_DYNAMIC_STRING == 0
+        -:  237:	  if (__builtin_expect(this != &_S_empty_rep(), false))
+        -:  238:#endif
+        -:  239:	    {
+        -:  240:	      // Be race-detector-friendly.  For more info see bits/c++config.
+        -:  241:	      _GLIBCXX_SYNCHRONIZATION_HAPPENS_BEFORE(&this->_M_refcount);
+        -:  242:	      if (__gnu_cxx::__exchange_and_add_dispatch(&this->_M_refcount,
+        -:  243:							 -1) <= 0)
+        -:  244:		{
+        -:  245:		  _GLIBCXX_SYNCHRONIZATION_HAPPENS_AFTER(&this->_M_refcount);
+        -:  246:		  _M_destroy(__a);
+        -:  247:		}
+        -:  248:	    }
+        -:  249:	}  // XXX MT
+        -:  250:
+        -:  251:	void
+        -:  252:	_M_destroy(const _Alloc&) throw();
+        -:  253:
+        -:  254:	_CharT*
+        -:  255:	_M_refcopy() throw()
+        -:  256:	{
+        -:  257:#if _GLIBCXX_FULLY_DYNAMIC_STRING == 0
+        -:  258:	  if (__builtin_expect(this != &_S_empty_rep(), false))
+        -:  259:#endif
+        -:  260:            __gnu_cxx::__atomic_add_dispatch(&this->_M_refcount, 1);
+        -:  261:	  return _M_refdata();
+        -:  262:	}  // XXX MT
+        -:  263:
+        -:  264:	_CharT*
+        -:  265:	_M_clone(const _Alloc&, size_type __res = 0);
+        -:  266:      };
+        -:  267:
+        -:  268:      // Use empty-base optimization: http://www.cantrip.org/emptyopt.html
+function _ZNSs12_Alloc_hiderD2Ev called 0 returned 0% blocks executed 0%
+    #####:  269:      struct _Alloc_hider : _Alloc
+call    0 never executed
+        -:  270:      {
+        -:  271:	_Alloc_hider(_CharT* __dat, const _Alloc& __a)
+        -:  272:	: _Alloc(__a), _M_p(__dat) { }
+        -:  273:
+        -:  274:	_CharT* _M_p; // The actual data.
+        -:  275:      };
+        -:  276:
+        -:  277:    public:
+        -:  278:      // Data Members (public):
+        -:  279:      // NB: This is an unsigned type, and thus represents the maximum
+        -:  280:      // size that the allocator can hold.
+        -:  281:      ///  Value returned by various member functions when they fail.
+        -:  282:      static const size_type	npos = static_cast<size_type>(-1);
+        -:  283:
+        -:  284:    private:
+        -:  285:      // Data Members (private):
+        -:  286:      mutable _Alloc_hider	_M_dataplus;
+        -:  287:
+        -:  288:      _CharT*
+        -:  289:      _M_data() const
+        -:  290:      { return  _M_dataplus._M_p; }
+        -:  291:
+        -:  292:      _CharT*
+        -:  293:      _M_data(_CharT* __p)
+        -:  294:      { return (_M_dataplus._M_p = __p); }
+        -:  295:
+        -:  296:      _Rep*
+        -:  297:      _M_rep() const
+        -:  298:      { return &((reinterpret_cast<_Rep*> (_M_data()))[-1]); }
+        -:  299:
+        -:  300:      // For the internal use we have functions similar to `begin'/`end'
+        -:  301:      // but they do not call _M_leak.
+        -:  302:      iterator
+        -:  303:      _M_ibegin() const
+        -:  304:      { return iterator(_M_data()); }
+        -:  305:
+        -:  306:      iterator
+        -:  307:      _M_iend() const
+        -:  308:      { return iterator(_M_data() + this->size()); }
+        -:  309:
+        -:  310:      void
+        -:  311:      _M_leak()    // for use in begin() & non-const op[]
+        -:  312:      {
+        -:  313:	if (!_M_rep()->_M_is_leaked())
+        -:  314:	  _M_leak_hard();
+        -:  315:      }
+        -:  316:
+        -:  317:      size_type
+        -:  318:      _M_check(size_type __pos, const char* __s) const
+        -:  319:      {
+        -:  320:	if (__pos > this->size())
+        -:  321:	  __throw_out_of_range(__N(__s));
+        -:  322:	return __pos;
+        -:  323:      }
+        -:  324:
+        -:  325:      void
+        -:  326:      _M_check_length(size_type __n1, size_type __n2, const char* __s) const
+        -:  327:      {
+        -:  328:	if (this->max_size() - (this->size() - __n1) < __n2)
+        -:  329:	  __throw_length_error(__N(__s));
+        -:  330:      }
+        -:  331:
+        -:  332:      // NB: _M_limit doesn't check for a bad __pos value.
+        -:  333:      size_type
+        -:  334:      _M_limit(size_type __pos, size_type __off) const
+        -:  335:      {
+        -:  336:	const bool __testoff =  __off < this->size() - __pos;
+        -:  337:	return __testoff ? __off : this->size() - __pos;
+        -:  338:      }
+        -:  339:
+        -:  340:      // True if _Rep and source do not overlap.
+        -:  341:      bool
+        -:  342:      _M_disjunct(const _CharT* __s) const
+        -:  343:      {
+        -:  344:	return (less<const _CharT*>()(__s, _M_data())
+        -:  345:		|| less<const _CharT*>()(_M_data() + this->size(), __s));
+        -:  346:      }
+        -:  347:
+        -:  348:      // When __n = 1 way faster than the general multichar
+        -:  349:      // traits_type::copy/move/assign.
+        -:  350:      static void
+        -:  351:      _M_copy(_CharT* __d, const _CharT* __s, size_type __n)
+        -:  352:      {
+        -:  353:	if (__n == 1)
+        -:  354:	  traits_type::assign(*__d, *__s);
+        -:  355:	else
+        -:  356:	  traits_type::copy(__d, __s, __n);
+        -:  357:      }
+        -:  358:
+        -:  359:      static void
+        -:  360:      _M_move(_CharT* __d, const _CharT* __s, size_type __n)
+        -:  361:      {
+        -:  362:	if (__n == 1)
+        -:  363:	  traits_type::assign(*__d, *__s);
+        -:  364:	else
+        -:  365:	  traits_type::move(__d, __s, __n);	  
+        -:  366:      }
+        -:  367:
+        -:  368:      static void
+        -:  369:      _M_assign(_CharT* __d, size_type __n, _CharT __c)
+        -:  370:      {
+        -:  371:	if (__n == 1)
+        -:  372:	  traits_type::assign(*__d, __c);
+        -:  373:	else
+        -:  374:	  traits_type::assign(__d, __n, __c);	  
+        -:  375:      }
+        -:  376:
+        -:  377:      // _S_copy_chars is a separate template to permit specialization
+        -:  378:      // to optimize for the common case of pointers as iterators.
+        -:  379:      template<class _Iterator>
+        -:  380:        static void
+        -:  381:        _S_copy_chars(_CharT* __p, _Iterator __k1, _Iterator __k2)
+        -:  382:        {
+        -:  383:	  for (; __k1 != __k2; ++__k1, ++__p)
+        -:  384:	    traits_type::assign(*__p, *__k1); // These types are off.
+        -:  385:	}
+        -:  386:
+        -:  387:      static void
+        -:  388:      _S_copy_chars(_CharT* __p, iterator __k1, iterator __k2)
+        -:  389:      { _S_copy_chars(__p, __k1.base(), __k2.base()); }
+        -:  390:
+        -:  391:      static void
+        -:  392:      _S_copy_chars(_CharT* __p, const_iterator __k1, const_iterator __k2)
+        -:  393:      { _S_copy_chars(__p, __k1.base(), __k2.base()); }
+        -:  394:
+        -:  395:      static void
+        -:  396:      _S_copy_chars(_CharT* __p, _CharT* __k1, _CharT* __k2)
+        -:  397:      { _M_copy(__p, __k1, __k2 - __k1); }
+        -:  398:
+        -:  399:      static void
+        -:  400:      _S_copy_chars(_CharT* __p, const _CharT* __k1, const _CharT* __k2)
+        -:  401:      { _M_copy(__p, __k1, __k2 - __k1); }
+        -:  402:
+        -:  403:      static int
+        -:  404:      _S_compare(size_type __n1, size_type __n2)
+        -:  405:      {
+        -:  406:	const difference_type __d = difference_type(__n1 - __n2);
+        -:  407:
+        -:  408:	if (__d > __gnu_cxx::__numeric_traits<int>::__max)
+        -:  409:	  return __gnu_cxx::__numeric_traits<int>::__max;
+        -:  410:	else if (__d < __gnu_cxx::__numeric_traits<int>::__min)
+        -:  411:	  return __gnu_cxx::__numeric_traits<int>::__min;
+        -:  412:	else
+        -:  413:	  return int(__d);
+        -:  414:      }
+        -:  415:
+        -:  416:      void
+        -:  417:      _M_mutate(size_type __pos, size_type __len1, size_type __len2);
+        -:  418:
+        -:  419:      void
+        -:  420:      _M_leak_hard();
+        -:  421:
+        -:  422:      static _Rep&
+        -:  423:      _S_empty_rep()
+        -:  424:      { return _Rep::_S_empty_rep(); }
+        -:  425:
+        -:  426:    public:
+        -:  427:      // Construct/copy/destroy:
+        -:  428:      // NB: We overload ctors in some cases instead of using default
+        -:  429:      // arguments, per 17.4.4.4 para. 2 item 2.
+        -:  430:
+        -:  431:      /**
+        -:  432:       *  @brief  Default constructor creates an empty string.
+        -:  433:       */
+        -:  434:      basic_string()
+        -:  435:#if _GLIBCXX_FULLY_DYNAMIC_STRING == 0
+        -:  436:      : _M_dataplus(_S_empty_rep()._M_refdata(), _Alloc()) { }
+        -:  437:#else
+        -:  438:      : _M_dataplus(_S_construct(size_type(), _CharT(), _Alloc()), _Alloc()){ }
+        -:  439:#endif
+        -:  440:
+        -:  441:      /**
+        -:  442:       *  @brief  Construct an empty string using allocator @a a.
+        -:  443:       */
+        -:  444:      explicit
+        -:  445:      basic_string(const _Alloc& __a);
+        -:  446:
+        -:  447:      // NB: per LWG issue 42, semantics different from IS:
+        -:  448:      /**
+        -:  449:       *  @brief  Construct string with copy of value of @a str.
+        -:  450:       *  @param  __str  Source string.
+        -:  451:       */
+        -:  452:      basic_string(const basic_string& __str);
+        -:  453:      /**
+        -:  454:       *  @brief  Construct string as copy of a substring.
+        -:  455:       *  @param  __str  Source string.
+        -:  456:       *  @param  __pos  Index of first character to copy from.
+        -:  457:       *  @param  __n  Number of characters to copy (default remainder).
+        -:  458:       */
+        -:  459:      basic_string(const basic_string& __str, size_type __pos,
+        -:  460:		   size_type __n = npos);
+        -:  461:      /**
+        -:  462:       *  @brief  Construct string as copy of a substring.
+        -:  463:       *  @param  __str  Source string.
+        -:  464:       *  @param  __pos  Index of first character to copy from.
+        -:  465:       *  @param  __n  Number of characters to copy.
+        -:  466:       *  @param  __a  Allocator to use.
+        -:  467:       */
+        -:  468:      basic_string(const basic_string& __str, size_type __pos,
+        -:  469:		   size_type __n, const _Alloc& __a);
+        -:  470:
+        -:  471:      /**
+        -:  472:       *  @brief  Construct string initialized by a character %array.
+        -:  473:       *  @param  __s  Source character %array.
+        -:  474:       *  @param  __n  Number of characters to copy.
+        -:  475:       *  @param  __a  Allocator to use (default is default allocator).
+        -:  476:       *
+        -:  477:       *  NB: @a __s must have at least @a __n characters, &apos;\\0&apos;
+        -:  478:       *  has no special meaning.
+        -:  479:       */
+        -:  480:      basic_string(const _CharT* __s, size_type __n,
+        -:  481:		   const _Alloc& __a = _Alloc());
+        -:  482:      /**
+        -:  483:       *  @brief  Construct string as copy of a C string.
+        -:  484:       *  @param  __s  Source C string.
+        -:  485:       *  @param  __a  Allocator to use (default is default allocator).
+        -:  486:       */
+        -:  487:      basic_string(const _CharT* __s, const _Alloc& __a = _Alloc());
+        -:  488:      /**
+        -:  489:       *  @brief  Construct string as multiple characters.
+        -:  490:       *  @param  __n  Number of characters.
+        -:  491:       *  @param  __c  Character to use.
+        -:  492:       *  @param  __a  Allocator to use (default is default allocator).
+        -:  493:       */
+        -:  494:      basic_string(size_type __n, _CharT __c, const _Alloc& __a = _Alloc());
+        -:  495:
+        -:  496:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  497:      /**
+        -:  498:       *  @brief  Move construct string.
+        -:  499:       *  @param  __str  Source string.
+        -:  500:       *
+        -:  501:       *  The newly-created string contains the exact contents of @a __str.
+        -:  502:       *  @a __str is a valid, but unspecified string.
+        -:  503:       **/
+        -:  504:      basic_string(basic_string&& __str) noexcept
+        -:  505:      : _M_dataplus(__str._M_dataplus)
+        -:  506:      {
+        -:  507:#if _GLIBCXX_FULLY_DYNAMIC_STRING == 0
+        -:  508:	__str._M_data(_S_empty_rep()._M_refdata());
+        -:  509:#else
+        -:  510:	__str._M_data(_S_construct(size_type(), _CharT(), get_allocator()));
+        -:  511:#endif
+        -:  512:      }
+        -:  513:
+        -:  514:      /**
+        -:  515:       *  @brief  Construct string from an initializer %list.
+        -:  516:       *  @param  __l  std::initializer_list of characters.
+        -:  517:       *  @param  __a  Allocator to use (default is default allocator).
+        -:  518:       */
+        -:  519:      basic_string(initializer_list<_CharT> __l, const _Alloc& __a = _Alloc());
+        -:  520:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -:  521:
+        -:  522:      /**
+        -:  523:       *  @brief  Construct string as copy of a range.
+        -:  524:       *  @param  __beg  Start of range.
+        -:  525:       *  @param  __end  End of range.
+        -:  526:       *  @param  __a  Allocator to use (default is default allocator).
+        -:  527:       */
+        -:  528:      template<class _InputIterator>
+        -:  529:        basic_string(_InputIterator __beg, _InputIterator __end,
+        -:  530:		     const _Alloc& __a = _Alloc());
+        -:  531:
+        -:  532:      /**
+        -:  533:       *  @brief  Destroy the string instance.
+        -:  534:       */
+        -:  535:      ~basic_string() _GLIBCXX_NOEXCEPT
+        -:  536:      { _M_rep()->_M_dispose(this->get_allocator()); }
+        -:  537:
+        -:  538:      /**
+        -:  539:       *  @brief  Assign the value of @a str to this string.
+        -:  540:       *  @param  __str  Source string.
+        -:  541:       */
+        -:  542:      basic_string&
+        -:  543:      operator=(const basic_string& __str) 
+        -:  544:      { return this->assign(__str); }
+        -:  545:
+        -:  546:      /**
+        -:  547:       *  @brief  Copy contents of @a s into this string.
+        -:  548:       *  @param  __s  Source null-terminated string.
+        -:  549:       */
+        -:  550:      basic_string&
+        -:  551:      operator=(const _CharT* __s) 
+        -:  552:      { return this->assign(__s); }
+        -:  553:
+        -:  554:      /**
+        -:  555:       *  @brief  Set value to string of length 1.
+        -:  556:       *  @param  __c  Source character.
+        -:  557:       *
+        -:  558:       *  Assigning to a character makes this string length 1 and
+        -:  559:       *  (*this)[0] == @a c.
+        -:  560:       */
+        -:  561:      basic_string&
+        -:  562:      operator=(_CharT __c) 
+        -:  563:      { 
+        -:  564:	this->assign(1, __c); 
+        -:  565:	return *this;
+        -:  566:      }
+        -:  567:
+        -:  568:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  569:      /**
+        -:  570:       *  @brief  Move assign the value of @a str to this string.
+        -:  571:       *  @param  __str  Source string.
+        -:  572:       *
+        -:  573:       *  The contents of @a str are moved into this string (without copying).
+        -:  574:       *  @a str is a valid, but unspecified string.
+        -:  575:       **/
+        -:  576:      basic_string&
+        -:  577:      operator=(basic_string&& __str)
+        -:  578:      {
+        -:  579:	// NB: DR 1204.
+        -:  580:	this->swap(__str);
+        -:  581:	return *this;
+        -:  582:      }
+        -:  583:
+        -:  584:      /**
+        -:  585:       *  @brief  Set value to string constructed from initializer %list.
+        -:  586:       *  @param  __l  std::initializer_list.
+        -:  587:       */
+        -:  588:      basic_string&
+        -:  589:      operator=(initializer_list<_CharT> __l)
+        -:  590:      {
+        -:  591:	this->assign(__l.begin(), __l.size());
+        -:  592:	return *this;
+        -:  593:      }
+        -:  594:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -:  595:
+        -:  596:      // Iterators:
+        -:  597:      /**
+        -:  598:       *  Returns a read/write iterator that points to the first character in
+        -:  599:       *  the %string.  Unshares the string.
+        -:  600:       */
+        -:  601:      iterator
+        -:  602:      begin() _GLIBCXX_NOEXCEPT
+        -:  603:      {
+        -:  604:	_M_leak();
+        -:  605:	return iterator(_M_data());
+        -:  606:      }
+        -:  607:
+        -:  608:      /**
+        -:  609:       *  Returns a read-only (constant) iterator that points to the first
+        -:  610:       *  character in the %string.
+        -:  611:       */
+        -:  612:      const_iterator
+        -:  613:      begin() const _GLIBCXX_NOEXCEPT
+        -:  614:      { return const_iterator(_M_data()); }
+        -:  615:
+        -:  616:      /**
+        -:  617:       *  Returns a read/write iterator that points one past the last
+        -:  618:       *  character in the %string.  Unshares the string.
+        -:  619:       */
+        -:  620:      iterator
+        -:  621:      end() _GLIBCXX_NOEXCEPT
+        -:  622:      {
+        -:  623:	_M_leak();
+        -:  624:	return iterator(_M_data() + this->size());
+        -:  625:      }
+        -:  626:
+        -:  627:      /**
+        -:  628:       *  Returns a read-only (constant) iterator that points one past the
+        -:  629:       *  last character in the %string.
+        -:  630:       */
+        -:  631:      const_iterator
+        -:  632:      end() const _GLIBCXX_NOEXCEPT
+        -:  633:      { return const_iterator(_M_data() + this->size()); }
+        -:  634:
+        -:  635:      /**
+        -:  636:       *  Returns a read/write reverse iterator that points to the last
+        -:  637:       *  character in the %string.  Iteration is done in reverse element
+        -:  638:       *  order.  Unshares the string.
+        -:  639:       */
+        -:  640:      reverse_iterator
+        -:  641:      rbegin() _GLIBCXX_NOEXCEPT
+        -:  642:      { return reverse_iterator(this->end()); }
+        -:  643:
+        -:  644:      /**
+        -:  645:       *  Returns a read-only (constant) reverse iterator that points
+        -:  646:       *  to the last character in the %string.  Iteration is done in
+        -:  647:       *  reverse element order.
+        -:  648:       */
+        -:  649:      const_reverse_iterator
+        -:  650:      rbegin() const _GLIBCXX_NOEXCEPT
+        -:  651:      { return const_reverse_iterator(this->end()); }
+        -:  652:
+        -:  653:      /**
+        -:  654:       *  Returns a read/write reverse iterator that points to one before the
+        -:  655:       *  first character in the %string.  Iteration is done in reverse
+        -:  656:       *  element order.  Unshares the string.
+        -:  657:       */
+        -:  658:      reverse_iterator
+        -:  659:      rend() _GLIBCXX_NOEXCEPT
+        -:  660:      { return reverse_iterator(this->begin()); }
+        -:  661:
+        -:  662:      /**
+        -:  663:       *  Returns a read-only (constant) reverse iterator that points
+        -:  664:       *  to one before the first character in the %string.  Iteration
+        -:  665:       *  is done in reverse element order.
+        -:  666:       */
+        -:  667:      const_reverse_iterator
+        -:  668:      rend() const _GLIBCXX_NOEXCEPT
+        -:  669:      { return const_reverse_iterator(this->begin()); }
+        -:  670:
+        -:  671:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  672:      /**
+        -:  673:       *  Returns a read-only (constant) iterator that points to the first
+        -:  674:       *  character in the %string.
+        -:  675:       */
+        -:  676:      const_iterator
+        -:  677:      cbegin() const noexcept
+        -:  678:      { return const_iterator(this->_M_data()); }
+        -:  679:
+        -:  680:      /**
+        -:  681:       *  Returns a read-only (constant) iterator that points one past the
+        -:  682:       *  last character in the %string.
+        -:  683:       */
+        -:  684:      const_iterator
+        -:  685:      cend() const noexcept
+        -:  686:      { return const_iterator(this->_M_data() + this->size()); }
+        -:  687:
+        -:  688:      /**
+        -:  689:       *  Returns a read-only (constant) reverse iterator that points
+        -:  690:       *  to the last character in the %string.  Iteration is done in
+        -:  691:       *  reverse element order.
+        -:  692:       */
+        -:  693:      const_reverse_iterator
+        -:  694:      crbegin() const noexcept
+        -:  695:      { return const_reverse_iterator(this->end()); }
+        -:  696:
+        -:  697:      /**
+        -:  698:       *  Returns a read-only (constant) reverse iterator that points
+        -:  699:       *  to one before the first character in the %string.  Iteration
+        -:  700:       *  is done in reverse element order.
+        -:  701:       */
+        -:  702:      const_reverse_iterator
+        -:  703:      crend() const noexcept
+        -:  704:      { return const_reverse_iterator(this->begin()); }
+        -:  705:#endif
+        -:  706:
+        -:  707:    public:
+        -:  708:      // Capacity:
+        -:  709:      ///  Returns the number of characters in the string, not including any
+        -:  710:      ///  null-termination.
+        -:  711:      size_type
+        -:  712:      size() const _GLIBCXX_NOEXCEPT
+        -:  713:      { return _M_rep()->_M_length; }
+        -:  714:
+        -:  715:      ///  Returns the number of characters in the string, not including any
+        -:  716:      ///  null-termination.
+        -:  717:      size_type
+        -:  718:      length() const _GLIBCXX_NOEXCEPT
+        -:  719:      { return _M_rep()->_M_length; }
+        -:  720:
+        -:  721:      ///  Returns the size() of the largest possible %string.
+        -:  722:      size_type
+        -:  723:      max_size() const _GLIBCXX_NOEXCEPT
+        -:  724:      { return _Rep::_S_max_size; }
+        -:  725:
+        -:  726:      /**
+        -:  727:       *  @brief  Resizes the %string to the specified number of characters.
+        -:  728:       *  @param  __n  Number of characters the %string should contain.
+        -:  729:       *  @param  __c  Character to fill any new elements.
+        -:  730:       *
+        -:  731:       *  This function will %resize the %string to the specified
+        -:  732:       *  number of characters.  If the number is smaller than the
+        -:  733:       *  %string's current size the %string is truncated, otherwise
+        -:  734:       *  the %string is extended and new elements are %set to @a __c.
+        -:  735:       */
+        -:  736:      void
+        -:  737:      resize(size_type __n, _CharT __c);
+        -:  738:
+        -:  739:      /**
+        -:  740:       *  @brief  Resizes the %string to the specified number of characters.
+        -:  741:       *  @param  __n  Number of characters the %string should contain.
+        -:  742:       *
+        -:  743:       *  This function will resize the %string to the specified length.  If
+        -:  744:       *  the new size is smaller than the %string's current size the %string
+        -:  745:       *  is truncated, otherwise the %string is extended and new characters
+        -:  746:       *  are default-constructed.  For basic types such as char, this means
+        -:  747:       *  setting them to 0.
+        -:  748:       */
+        -:  749:      void
+        -:  750:      resize(size_type __n)
+        -:  751:      { this->resize(__n, _CharT()); }
+        -:  752:
+        -:  753:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  754:      ///  A non-binding request to reduce capacity() to size().
+        -:  755:      void
+        -:  756:      shrink_to_fit()
+        -:  757:      {
+        -:  758:	if (capacity() > size())
+        -:  759:	  {
+        -:  760:	    __try
+        -:  761:	      { reserve(0); }
+        -:  762:	    __catch(...)
+        -:  763:	      { }
+        -:  764:	  }
+        -:  765:      }
+        -:  766:#endif
+        -:  767:
+        -:  768:      /**
+        -:  769:       *  Returns the total number of characters that the %string can hold
+        -:  770:       *  before needing to allocate more memory.
+        -:  771:       */
+        -:  772:      size_type
+        -:  773:      capacity() const _GLIBCXX_NOEXCEPT
+        -:  774:      { return _M_rep()->_M_capacity; }
+        -:  775:
+        -:  776:      /**
+        -:  777:       *  @brief  Attempt to preallocate enough memory for specified number of
+        -:  778:       *          characters.
+        -:  779:       *  @param  __res_arg  Number of characters required.
+        -:  780:       *  @throw  std::length_error  If @a __res_arg exceeds @c max_size().
+        -:  781:       *
+        -:  782:       *  This function attempts to reserve enough memory for the
+        -:  783:       *  %string to hold the specified number of characters.  If the
+        -:  784:       *  number requested is more than max_size(), length_error is
+        -:  785:       *  thrown.
+        -:  786:       *
+        -:  787:       *  The advantage of this function is that if optimal code is a
+        -:  788:       *  necessity and the user can determine the string length that will be
+        -:  789:       *  required, the user can reserve the memory in %advance, and thus
+        -:  790:       *  prevent a possible reallocation of memory and copying of %string
+        -:  791:       *  data.
+        -:  792:       */
+        -:  793:      void
+        -:  794:      reserve(size_type __res_arg = 0);
+        -:  795:
+        -:  796:      /**
+        -:  797:       *  Erases the string, making it empty.
+        -:  798:       */
+        -:  799:      void
+        -:  800:      clear() _GLIBCXX_NOEXCEPT
+        -:  801:      { _M_mutate(0, this->size(), 0); }
+        -:  802:
+        -:  803:      /**
+        -:  804:       *  Returns true if the %string is empty.  Equivalent to 
+        -:  805:       *  <code>*this == ""</code>.
+        -:  806:       */
+        -:  807:      bool
+        -:  808:      empty() const _GLIBCXX_NOEXCEPT
+        -:  809:      { return this->size() == 0; }
+        -:  810:
+        -:  811:      // Element access:
+        -:  812:      /**
+        -:  813:       *  @brief  Subscript access to the data contained in the %string.
+        -:  814:       *  @param  __pos  The index of the character to access.
+        -:  815:       *  @return  Read-only (constant) reference to the character.
+        -:  816:       *
+        -:  817:       *  This operator allows for easy, array-style, data access.
+        -:  818:       *  Note that data access with this operator is unchecked and
+        -:  819:       *  out_of_range lookups are not defined. (For checked lookups
+        -:  820:       *  see at().)
+        -:  821:       */
+        -:  822:      const_reference
+        -:  823:      operator[] (size_type __pos) const
+        -:  824:      {
+        -:  825:	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+        -:  826:	return _M_data()[__pos];
+        -:  827:      }
+        -:  828:
+        -:  829:      /**
+        -:  830:       *  @brief  Subscript access to the data contained in the %string.
+        -:  831:       *  @param  __pos  The index of the character to access.
+        -:  832:       *  @return  Read/write reference to the character.
+        -:  833:       *
+        -:  834:       *  This operator allows for easy, array-style, data access.
+        -:  835:       *  Note that data access with this operator is unchecked and
+        -:  836:       *  out_of_range lookups are not defined. (For checked lookups
+        -:  837:       *  see at().)  Unshares the string.
+        -:  838:       */
+        -:  839:      reference
+        -:  840:      operator[](size_type __pos)
+        -:  841:      {
+        -:  842:        // allow pos == size() as v3 extension:
+        -:  843:	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+        -:  844:        // but be strict in pedantic mode:
+        -:  845:	_GLIBCXX_DEBUG_PEDASSERT(__pos < size());
+        -:  846:	_M_leak();
+        -:  847:	return _M_data()[__pos];
+        -:  848:      }
+        -:  849:
+        -:  850:      /**
+        -:  851:       *  @brief  Provides access to the data contained in the %string.
+        -:  852:       *  @param __n The index of the character to access.
+        -:  853:       *  @return  Read-only (const) reference to the character.
+        -:  854:       *  @throw  std::out_of_range  If @a n is an invalid index.
+        -:  855:       *
+        -:  856:       *  This function provides for safer data access.  The parameter is
+        -:  857:       *  first checked that it is in the range of the string.  The function
+        -:  858:       *  throws out_of_range if the check fails.
+        -:  859:       */
+        -:  860:      const_reference
+        -:  861:      at(size_type __n) const
+        -:  862:      {
+        -:  863:	if (__n >= this->size())
+        -:  864:	  __throw_out_of_range(__N("basic_string::at"));
+        -:  865:	return _M_data()[__n];
+        -:  866:      }
+        -:  867:
+        -:  868:      /**
+        -:  869:       *  @brief  Provides access to the data contained in the %string.
+        -:  870:       *  @param __n The index of the character to access.
+        -:  871:       *  @return  Read/write reference to the character.
+        -:  872:       *  @throw  std::out_of_range  If @a n is an invalid index.
+        -:  873:       *
+        -:  874:       *  This function provides for safer data access.  The parameter is
+        -:  875:       *  first checked that it is in the range of the string.  The function
+        -:  876:       *  throws out_of_range if the check fails.  Success results in
+        -:  877:       *  unsharing the string.
+        -:  878:       */
+        -:  879:      reference
+        -:  880:      at(size_type __n)
+        -:  881:      {
+        -:  882:	if (__n >= size())
+        -:  883:	  __throw_out_of_range(__N("basic_string::at"));
+        -:  884:	_M_leak();
+        -:  885:	return _M_data()[__n];
+        -:  886:      }
+        -:  887:
+        -:  888:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  889:      /**
+        -:  890:       *  Returns a read/write reference to the data at the first
+        -:  891:       *  element of the %string.
+        -:  892:       */
+        -:  893:      reference
+        -:  894:      front()
+        -:  895:      { return operator[](0); }
+        -:  896:
+        -:  897:      /**
+        -:  898:       *  Returns a read-only (constant) reference to the data at the first
+        -:  899:       *  element of the %string.
+        -:  900:       */
+        -:  901:      const_reference
+        -:  902:      front() const
+        -:  903:      { return operator[](0); }
+        -:  904:
+        -:  905:      /**
+        -:  906:       *  Returns a read/write reference to the data at the last
+        -:  907:       *  element of the %string.
+        -:  908:       */
+        -:  909:      reference
+        -:  910:      back()
+        -:  911:      { return operator[](this->size() - 1); }
+        -:  912:
+        -:  913:      /**
+        -:  914:       *  Returns a read-only (constant) reference to the data at the
+        -:  915:       *  last element of the %string.
+        -:  916:       */
+        -:  917:      const_reference
+        -:  918:      back() const
+        -:  919:      { return operator[](this->size() - 1); }
+        -:  920:#endif
+        -:  921:
+        -:  922:      // Modifiers:
+        -:  923:      /**
+        -:  924:       *  @brief  Append a string to this string.
+        -:  925:       *  @param __str  The string to append.
+        -:  926:       *  @return  Reference to this string.
+        -:  927:       */
+        -:  928:      basic_string&
+        -:  929:      operator+=(const basic_string& __str)
+        -:  930:      { return this->append(__str); }
+        -:  931:
+        -:  932:      /**
+        -:  933:       *  @brief  Append a C string.
+        -:  934:       *  @param __s  The C string to append.
+        -:  935:       *  @return  Reference to this string.
+        -:  936:       */
+        -:  937:      basic_string&
+        -:  938:      operator+=(const _CharT* __s)
+        -:  939:      { return this->append(__s); }
+        -:  940:
+        -:  941:      /**
+        -:  942:       *  @brief  Append a character.
+        -:  943:       *  @param __c  The character to append.
+        -:  944:       *  @return  Reference to this string.
+        -:  945:       */
+        -:  946:      basic_string&
+        -:  947:      operator+=(_CharT __c)
+        -:  948:      { 
+        -:  949:	this->push_back(__c);
+        -:  950:	return *this;
+        -:  951:      }
+        -:  952:
+        -:  953:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  954:      /**
+        -:  955:       *  @brief  Append an initializer_list of characters.
+        -:  956:       *  @param __l  The initializer_list of characters to be appended.
+        -:  957:       *  @return  Reference to this string.
+        -:  958:       */
+        -:  959:      basic_string&
+        -:  960:      operator+=(initializer_list<_CharT> __l)
+        -:  961:      { return this->append(__l.begin(), __l.size()); }
+        -:  962:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -:  963:
+        -:  964:      /**
+        -:  965:       *  @brief  Append a string to this string.
+        -:  966:       *  @param __str  The string to append.
+        -:  967:       *  @return  Reference to this string.
+        -:  968:       */
+        -:  969:      basic_string&
+        -:  970:      append(const basic_string& __str);
+        -:  971:
+        -:  972:      /**
+        -:  973:       *  @brief  Append a substring.
+        -:  974:       *  @param __str  The string to append.
+        -:  975:       *  @param __pos  Index of the first character of str to append.
+        -:  976:       *  @param __n  The number of characters to append.
+        -:  977:       *  @return  Reference to this string.
+        -:  978:       *  @throw  std::out_of_range if @a __pos is not a valid index.
+        -:  979:       *
+        -:  980:       *  This function appends @a __n characters from @a __str
+        -:  981:       *  starting at @a __pos to this string.  If @a __n is is larger
+        -:  982:       *  than the number of available characters in @a __str, the
+        -:  983:       *  remainder of @a __str is appended.
+        -:  984:       */
+        -:  985:      basic_string&
+        -:  986:      append(const basic_string& __str, size_type __pos, size_type __n);
+        -:  987:
+        -:  988:      /**
+        -:  989:       *  @brief  Append a C substring.
+        -:  990:       *  @param __s  The C string to append.
+        -:  991:       *  @param __n  The number of characters to append.
+        -:  992:       *  @return  Reference to this string.
+        -:  993:       */
+        -:  994:      basic_string&
+        -:  995:      append(const _CharT* __s, size_type __n);
+        -:  996:
+        -:  997:      /**
+        -:  998:       *  @brief  Append a C string.
+        -:  999:       *  @param __s  The C string to append.
+        -: 1000:       *  @return  Reference to this string.
+        -: 1001:       */
+        -: 1002:      basic_string&
+        -: 1003:      append(const _CharT* __s)
+        -: 1004:      {
+        -: 1005:	__glibcxx_requires_string(__s);
+        -: 1006:	return this->append(__s, traits_type::length(__s));
+        -: 1007:      }
+        -: 1008:
+        -: 1009:      /**
+        -: 1010:       *  @brief  Append multiple characters.
+        -: 1011:       *  @param __n  The number of characters to append.
+        -: 1012:       *  @param __c  The character to use.
+        -: 1013:       *  @return  Reference to this string.
+        -: 1014:       *
+        -: 1015:       *  Appends __n copies of __c to this string.
+        -: 1016:       */
+        -: 1017:      basic_string&
+        -: 1018:      append(size_type __n, _CharT __c);
+        -: 1019:
+        -: 1020:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1021:      /**
+        -: 1022:       *  @brief  Append an initializer_list of characters.
+        -: 1023:       *  @param __l  The initializer_list of characters to append.
+        -: 1024:       *  @return  Reference to this string.
+        -: 1025:       */
+        -: 1026:      basic_string&
+        -: 1027:      append(initializer_list<_CharT> __l)
+        -: 1028:      { return this->append(__l.begin(), __l.size()); }
+        -: 1029:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1030:
+        -: 1031:      /**
+        -: 1032:       *  @brief  Append a range of characters.
+        -: 1033:       *  @param __first  Iterator referencing the first character to append.
+        -: 1034:       *  @param __last  Iterator marking the end of the range.
+        -: 1035:       *  @return  Reference to this string.
+        -: 1036:       *
+        -: 1037:       *  Appends characters in the range [__first,__last) to this string.
+        -: 1038:       */
+        -: 1039:      template<class _InputIterator>
+        -: 1040:        basic_string&
+        -: 1041:        append(_InputIterator __first, _InputIterator __last)
+        -: 1042:        { return this->replace(_M_iend(), _M_iend(), __first, __last); }
+        -: 1043:
+        -: 1044:      /**
+        -: 1045:       *  @brief  Append a single character.
+        -: 1046:       *  @param __c  Character to append.
+        -: 1047:       */
+        -: 1048:      void
+        -: 1049:      push_back(_CharT __c)
+        -: 1050:      { 
+        -: 1051:	const size_type __len = 1 + this->size();
+        -: 1052:	if (__len > this->capacity() || _M_rep()->_M_is_shared())
+        -: 1053:	  this->reserve(__len);
+        -: 1054:	traits_type::assign(_M_data()[this->size()], __c);
+        -: 1055:	_M_rep()->_M_set_length_and_sharable(__len);
+        -: 1056:      }
+        -: 1057:
+        -: 1058:      /**
+        -: 1059:       *  @brief  Set value to contents of another string.
+        -: 1060:       *  @param  __str  Source string to use.
+        -: 1061:       *  @return  Reference to this string.
+        -: 1062:       */
+        -: 1063:      basic_string&
+        -: 1064:      assign(const basic_string& __str);
+        -: 1065:
+        -: 1066:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1067:      /**
+        -: 1068:       *  @brief  Set value to contents of another string.
+        -: 1069:       *  @param  __str  Source string to use.
+        -: 1070:       *  @return  Reference to this string.
+        -: 1071:       *
+        -: 1072:       *  This function sets this string to the exact contents of @a __str.
+        -: 1073:       *  @a __str is a valid, but unspecified string.
+        -: 1074:       */
+        -: 1075:      basic_string&
+        -: 1076:      assign(basic_string&& __str)
+        -: 1077:      {
+        -: 1078:	this->swap(__str);
+        -: 1079:	return *this;
+        -: 1080:      }
+        -: 1081:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1082:
+        -: 1083:      /**
+        -: 1084:       *  @brief  Set value to a substring of a string.
+        -: 1085:       *  @param __str  The string to use.
+        -: 1086:       *  @param __pos  Index of the first character of str.
+        -: 1087:       *  @param __n  Number of characters to use.
+        -: 1088:       *  @return  Reference to this string.
+        -: 1089:       *  @throw  std::out_of_range if @a pos is not a valid index.
+        -: 1090:       *
+        -: 1091:       *  This function sets this string to the substring of @a __str
+        -: 1092:       *  consisting of @a __n characters at @a __pos.  If @a __n is
+        -: 1093:       *  is larger than the number of available characters in @a
+        -: 1094:       *  __str, the remainder of @a __str is used.
+        -: 1095:       */
+        -: 1096:      basic_string&
+        -: 1097:      assign(const basic_string& __str, size_type __pos, size_type __n)
+        -: 1098:      { return this->assign(__str._M_data()
+        -: 1099:			    + __str._M_check(__pos, "basic_string::assign"),
+        -: 1100:			    __str._M_limit(__pos, __n)); }
+        -: 1101:
+        -: 1102:      /**
+        -: 1103:       *  @brief  Set value to a C substring.
+        -: 1104:       *  @param __s  The C string to use.
+        -: 1105:       *  @param __n  Number of characters to use.
+        -: 1106:       *  @return  Reference to this string.
+        -: 1107:       *
+        -: 1108:       *  This function sets the value of this string to the first @a __n
+        -: 1109:       *  characters of @a __s.  If @a __n is is larger than the number of
+        -: 1110:       *  available characters in @a __s, the remainder of @a __s is used.
+        -: 1111:       */
+        -: 1112:      basic_string&
+        -: 1113:      assign(const _CharT* __s, size_type __n);
+        -: 1114:
+        -: 1115:      /**
+        -: 1116:       *  @brief  Set value to contents of a C string.
+        -: 1117:       *  @param __s  The C string to use.
+        -: 1118:       *  @return  Reference to this string.
+        -: 1119:       *
+        -: 1120:       *  This function sets the value of this string to the value of @a __s.
+        -: 1121:       *  The data is copied, so there is no dependence on @a __s once the
+        -: 1122:       *  function returns.
+        -: 1123:       */
+        -: 1124:      basic_string&
+        -: 1125:      assign(const _CharT* __s)
+        -: 1126:      {
+        -: 1127:	__glibcxx_requires_string(__s);
+        -: 1128:	return this->assign(__s, traits_type::length(__s));
+        -: 1129:      }
+        -: 1130:
+        -: 1131:      /**
+        -: 1132:       *  @brief  Set value to multiple characters.
+        -: 1133:       *  @param __n  Length of the resulting string.
+        -: 1134:       *  @param __c  The character to use.
+        -: 1135:       *  @return  Reference to this string.
+        -: 1136:       *
+        -: 1137:       *  This function sets the value of this string to @a __n copies of
+        -: 1138:       *  character @a __c.
+        -: 1139:       */
+        -: 1140:      basic_string&
+        -: 1141:      assign(size_type __n, _CharT __c)
+        -: 1142:      { return _M_replace_aux(size_type(0), this->size(), __n, __c); }
+        -: 1143:
+        -: 1144:      /**
+        -: 1145:       *  @brief  Set value to a range of characters.
+        -: 1146:       *  @param __first  Iterator referencing the first character to append.
+        -: 1147:       *  @param __last  Iterator marking the end of the range.
+        -: 1148:       *  @return  Reference to this string.
+        -: 1149:       *
+        -: 1150:       *  Sets value of string to characters in the range [__first,__last).
+        -: 1151:      */
+        -: 1152:      template<class _InputIterator>
+        -: 1153:        basic_string&
+        -: 1154:        assign(_InputIterator __first, _InputIterator __last)
+        -: 1155:        { return this->replace(_M_ibegin(), _M_iend(), __first, __last); }
+        -: 1156:
+        -: 1157:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1158:      /**
+        -: 1159:       *  @brief  Set value to an initializer_list of characters.
+        -: 1160:       *  @param __l  The initializer_list of characters to assign.
+        -: 1161:       *  @return  Reference to this string.
+        -: 1162:       */
+        -: 1163:      basic_string&
+        -: 1164:      assign(initializer_list<_CharT> __l)
+        -: 1165:      { return this->assign(__l.begin(), __l.size()); }
+        -: 1166:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1167:
+        -: 1168:      /**
+        -: 1169:       *  @brief  Insert multiple characters.
+        -: 1170:       *  @param __p  Iterator referencing location in string to insert at.
+        -: 1171:       *  @param __n  Number of characters to insert
+        -: 1172:       *  @param __c  The character to insert.
+        -: 1173:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1174:       *
+        -: 1175:       *  Inserts @a __n copies of character @a __c starting at the
+        -: 1176:       *  position referenced by iterator @a __p.  If adding
+        -: 1177:       *  characters causes the length to exceed max_size(),
+        -: 1178:       *  length_error is thrown.  The value of the string doesn't
+        -: 1179:       *  change if an error is thrown.
+        -: 1180:      */
+        -: 1181:      void
+        -: 1182:      insert(iterator __p, size_type __n, _CharT __c)
+        -: 1183:      {	this->replace(__p, __p, __n, __c);  }
+        -: 1184:
+        -: 1185:      /**
+        -: 1186:       *  @brief  Insert a range of characters.
+        -: 1187:       *  @param __p  Iterator referencing location in string to insert at.
+        -: 1188:       *  @param __beg  Start of range.
+        -: 1189:       *  @param __end  End of range.
+        -: 1190:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1191:       *
+        -: 1192:       *  Inserts characters in range [__beg,__end).  If adding
+        -: 1193:       *  characters causes the length to exceed max_size(),
+        -: 1194:       *  length_error is thrown.  The value of the string doesn't
+        -: 1195:       *  change if an error is thrown.
+        -: 1196:      */
+        -: 1197:      template<class _InputIterator>
+        -: 1198:        void
+        -: 1199:        insert(iterator __p, _InputIterator __beg, _InputIterator __end)
+        -: 1200:        { this->replace(__p, __p, __beg, __end); }
+        -: 1201:
+        -: 1202:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1203:      /**
+        -: 1204:       *  @brief  Insert an initializer_list of characters.
+        -: 1205:       *  @param __p  Iterator referencing location in string to insert at.
+        -: 1206:       *  @param __l  The initializer_list of characters to insert.
+        -: 1207:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1208:       */
+        -: 1209:      void
+        -: 1210:      insert(iterator __p, initializer_list<_CharT> __l)
+        -: 1211:      {
+        -: 1212:	_GLIBCXX_DEBUG_PEDASSERT(__p >= _M_ibegin() && __p <= _M_iend());
+        -: 1213:	this->insert(__p - _M_ibegin(), __l.begin(), __l.size());
+        -: 1214:      }
+        -: 1215:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1216:
+        -: 1217:      /**
+        -: 1218:       *  @brief  Insert value of a string.
+        -: 1219:       *  @param __pos1  Iterator referencing location in string to insert at.
+        -: 1220:       *  @param __str  The string to insert.
+        -: 1221:       *  @return  Reference to this string.
+        -: 1222:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1223:       *
+        -: 1224:       *  Inserts value of @a __str starting at @a __pos1.  If adding
+        -: 1225:       *  characters causes the length to exceed max_size(),
+        -: 1226:       *  length_error is thrown.  The value of the string doesn't
+        -: 1227:       *  change if an error is thrown.
+        -: 1228:      */
+        -: 1229:      basic_string&
+        -: 1230:      insert(size_type __pos1, const basic_string& __str)
+        -: 1231:      { return this->insert(__pos1, __str, size_type(0), __str.size()); }
+        -: 1232:
+        -: 1233:      /**
+        -: 1234:       *  @brief  Insert a substring.
+        -: 1235:       *  @param __pos1  Iterator referencing location in string to insert at.
+        -: 1236:       *  @param __str  The string to insert.
+        -: 1237:       *  @param __pos2  Start of characters in str to insert.
+        -: 1238:       *  @param __n  Number of characters to insert.
+        -: 1239:       *  @return  Reference to this string.
+        -: 1240:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1241:       *  @throw  std::out_of_range  If @a pos1 > size() or
+        -: 1242:       *  @a __pos2 > @a str.size().
+        -: 1243:       *
+        -: 1244:       *  Starting at @a pos1, insert @a __n character of @a __str
+        -: 1245:       *  beginning with @a __pos2.  If adding characters causes the
+        -: 1246:       *  length to exceed max_size(), length_error is thrown.  If @a
+        -: 1247:       *  __pos1 is beyond the end of this string or @a __pos2 is
+        -: 1248:       *  beyond the end of @a __str, out_of_range is thrown.  The
+        -: 1249:       *  value of the string doesn't change if an error is thrown.
+        -: 1250:      */
+        -: 1251:      basic_string&
+        -: 1252:      insert(size_type __pos1, const basic_string& __str,
+        -: 1253:	     size_type __pos2, size_type __n)
+        -: 1254:      { return this->insert(__pos1, __str._M_data()
+        -: 1255:			    + __str._M_check(__pos2, "basic_string::insert"),
+        -: 1256:			    __str._M_limit(__pos2, __n)); }
+        -: 1257:
+        -: 1258:      /**
+        -: 1259:       *  @brief  Insert a C substring.
+        -: 1260:       *  @param __pos  Iterator referencing location in string to insert at.
+        -: 1261:       *  @param __s  The C string to insert.
+        -: 1262:       *  @param __n  The number of characters to insert.
+        -: 1263:       *  @return  Reference to this string.
+        -: 1264:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1265:       *  @throw  std::out_of_range  If @a __pos is beyond the end of this
+        -: 1266:       *  string.
+        -: 1267:       *
+        -: 1268:       *  Inserts the first @a __n characters of @a __s starting at @a
+        -: 1269:       *  __pos.  If adding characters causes the length to exceed
+        -: 1270:       *  max_size(), length_error is thrown.  If @a __pos is beyond
+        -: 1271:       *  end(), out_of_range is thrown.  The value of the string
+        -: 1272:       *  doesn't change if an error is thrown.
+        -: 1273:      */
+        -: 1274:      basic_string&
+        -: 1275:      insert(size_type __pos, const _CharT* __s, size_type __n);
+        -: 1276:
+        -: 1277:      /**
+        -: 1278:       *  @brief  Insert a C string.
+        -: 1279:       *  @param __pos  Iterator referencing location in string to insert at.
+        -: 1280:       *  @param __s  The C string to insert.
+        -: 1281:       *  @return  Reference to this string.
+        -: 1282:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1283:       *  @throw  std::out_of_range  If @a pos is beyond the end of this
+        -: 1284:       *  string.
+        -: 1285:       *
+        -: 1286:       *  Inserts the first @a n characters of @a __s starting at @a __pos.  If
+        -: 1287:       *  adding characters causes the length to exceed max_size(),
+        -: 1288:       *  length_error is thrown.  If @a __pos is beyond end(), out_of_range is
+        -: 1289:       *  thrown.  The value of the string doesn't change if an error is
+        -: 1290:       *  thrown.
+        -: 1291:      */
+        -: 1292:      basic_string&
+        -: 1293:      insert(size_type __pos, const _CharT* __s)
+        -: 1294:      {
+        -: 1295:	__glibcxx_requires_string(__s);
+        -: 1296:	return this->insert(__pos, __s, traits_type::length(__s));
+        -: 1297:      }
+        -: 1298:
+        -: 1299:      /**
+        -: 1300:       *  @brief  Insert multiple characters.
+        -: 1301:       *  @param __pos  Index in string to insert at.
+        -: 1302:       *  @param __n  Number of characters to insert
+        -: 1303:       *  @param __c  The character to insert.
+        -: 1304:       *  @return  Reference to this string.
+        -: 1305:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1306:       *  @throw  std::out_of_range  If @a __pos is beyond the end of this
+        -: 1307:       *  string.
+        -: 1308:       *
+        -: 1309:       *  Inserts @a __n copies of character @a __c starting at index
+        -: 1310:       *  @a __pos.  If adding characters causes the length to exceed
+        -: 1311:       *  max_size(), length_error is thrown.  If @a __pos > length(),
+        -: 1312:       *  out_of_range is thrown.  The value of the string doesn't
+        -: 1313:       *  change if an error is thrown.
+        -: 1314:      */
+        -: 1315:      basic_string&
+        -: 1316:      insert(size_type __pos, size_type __n, _CharT __c)
+        -: 1317:      { return _M_replace_aux(_M_check(__pos, "basic_string::insert"),
+        -: 1318:			      size_type(0), __n, __c); }
+        -: 1319:
+        -: 1320:      /**
+        -: 1321:       *  @brief  Insert one character.
+        -: 1322:       *  @param __p  Iterator referencing position in string to insert at.
+        -: 1323:       *  @param __c  The character to insert.
+        -: 1324:       *  @return  Iterator referencing newly inserted char.
+        -: 1325:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1326:       *
+        -: 1327:       *  Inserts character @a __c at position referenced by @a __p.
+        -: 1328:       *  If adding character causes the length to exceed max_size(),
+        -: 1329:       *  length_error is thrown.  If @a __p is beyond end of string,
+        -: 1330:       *  out_of_range is thrown.  The value of the string doesn't
+        -: 1331:       *  change if an error is thrown.
+        -: 1332:      */
+        -: 1333:      iterator
+        -: 1334:      insert(iterator __p, _CharT __c)
+        -: 1335:      {
+        -: 1336:	_GLIBCXX_DEBUG_PEDASSERT(__p >= _M_ibegin() && __p <= _M_iend());
+        -: 1337:	const size_type __pos = __p - _M_ibegin();
+        -: 1338:	_M_replace_aux(__pos, size_type(0), size_type(1), __c);
+        -: 1339:	_M_rep()->_M_set_leaked();
+        -: 1340:	return iterator(_M_data() + __pos);
+        -: 1341:      }
+        -: 1342:
+        -: 1343:      /**
+        -: 1344:       *  @brief  Remove characters.
+        -: 1345:       *  @param __pos  Index of first character to remove (default 0).
+        -: 1346:       *  @param __n  Number of characters to remove (default remainder).
+        -: 1347:       *  @return  Reference to this string.
+        -: 1348:       *  @throw  std::out_of_range  If @a pos is beyond the end of this
+        -: 1349:       *  string.
+        -: 1350:       *
+        -: 1351:       *  Removes @a __n characters from this string starting at @a
+        -: 1352:       *  __pos.  The length of the string is reduced by @a __n.  If
+        -: 1353:       *  there are < @a __n characters to remove, the remainder of
+        -: 1354:       *  the string is truncated.  If @a __p is beyond end of string,
+        -: 1355:       *  out_of_range is thrown.  The value of the string doesn't
+        -: 1356:       *  change if an error is thrown.
+        -: 1357:      */
+        -: 1358:      basic_string&
+        -: 1359:      erase(size_type __pos = 0, size_type __n = npos)
+        -: 1360:      { 
+        -: 1361:	_M_mutate(_M_check(__pos, "basic_string::erase"),
+        -: 1362:		  _M_limit(__pos, __n), size_type(0));
+        -: 1363:	return *this;
+        -: 1364:      }
+        -: 1365:
+        -: 1366:      /**
+        -: 1367:       *  @brief  Remove one character.
+        -: 1368:       *  @param __position  Iterator referencing the character to remove.
+        -: 1369:       *  @return  iterator referencing same location after removal.
+        -: 1370:       *
+        -: 1371:       *  Removes the character at @a __position from this string. The value
+        -: 1372:       *  of the string doesn't change if an error is thrown.
+        -: 1373:      */
+        -: 1374:      iterator
+        -: 1375:      erase(iterator __position)
+        -: 1376:      {
+        -: 1377:	_GLIBCXX_DEBUG_PEDASSERT(__position >= _M_ibegin()
+        -: 1378:				 && __position < _M_iend());
+        -: 1379:	const size_type __pos = __position - _M_ibegin();
+        -: 1380:	_M_mutate(__pos, size_type(1), size_type(0));
+        -: 1381:	_M_rep()->_M_set_leaked();
+        -: 1382:	return iterator(_M_data() + __pos);
+        -: 1383:      }
+        -: 1384:
+        -: 1385:      /**
+        -: 1386:       *  @brief  Remove a range of characters.
+        -: 1387:       *  @param __first  Iterator referencing the first character to remove.
+        -: 1388:       *  @param __last  Iterator referencing the end of the range.
+        -: 1389:       *  @return  Iterator referencing location of first after removal.
+        -: 1390:       *
+        -: 1391:       *  Removes the characters in the range [first,last) from this string.
+        -: 1392:       *  The value of the string doesn't change if an error is thrown.
+        -: 1393:      */
+        -: 1394:      iterator
+        -: 1395:      erase(iterator __first, iterator __last);
+        -: 1396: 
+        -: 1397:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1398:      /**
+        -: 1399:       *  @brief  Remove the last character.
+        -: 1400:       *
+        -: 1401:       *  The string must be non-empty.
+        -: 1402:       */
+        -: 1403:      void
+        -: 1404:      pop_back()
+        -: 1405:      { erase(size()-1, 1); }
+        -: 1406:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1407:
+        -: 1408:      /**
+        -: 1409:       *  @brief  Replace characters with value from another string.
+        -: 1410:       *  @param __pos  Index of first character to replace.
+        -: 1411:       *  @param __n  Number of characters to be replaced.
+        -: 1412:       *  @param __str  String to insert.
+        -: 1413:       *  @return  Reference to this string.
+        -: 1414:       *  @throw  std::out_of_range  If @a pos is beyond the end of this
+        -: 1415:       *  string.
+        -: 1416:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1417:       *
+        -: 1418:       *  Removes the characters in the range [__pos,__pos+__n) from
+        -: 1419:       *  this string.  In place, the value of @a __str is inserted.
+        -: 1420:       *  If @a __pos is beyond end of string, out_of_range is thrown.
+        -: 1421:       *  If the length of the result exceeds max_size(), length_error
+        -: 1422:       *  is thrown.  The value of the string doesn't change if an
+        -: 1423:       *  error is thrown.
+        -: 1424:      */
+        -: 1425:      basic_string&
+        -: 1426:      replace(size_type __pos, size_type __n, const basic_string& __str)
+        -: 1427:      { return this->replace(__pos, __n, __str._M_data(), __str.size()); }
+        -: 1428:
+        -: 1429:      /**
+        -: 1430:       *  @brief  Replace characters with value from another string.
+        -: 1431:       *  @param __pos1  Index of first character to replace.
+        -: 1432:       *  @param __n1  Number of characters to be replaced.
+        -: 1433:       *  @param __str  String to insert.
+        -: 1434:       *  @param __pos2  Index of first character of str to use.
+        -: 1435:       *  @param __n2  Number of characters from str to use.
+        -: 1436:       *  @return  Reference to this string.
+        -: 1437:       *  @throw  std::out_of_range  If @a __pos1 > size() or @a __pos2 >
+        -: 1438:       *  __str.size().
+        -: 1439:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1440:       *
+        -: 1441:       *  Removes the characters in the range [__pos1,__pos1 + n) from this
+        -: 1442:       *  string.  In place, the value of @a __str is inserted.  If @a __pos is
+        -: 1443:       *  beyond end of string, out_of_range is thrown.  If the length of the
+        -: 1444:       *  result exceeds max_size(), length_error is thrown.  The value of the
+        -: 1445:       *  string doesn't change if an error is thrown.
+        -: 1446:      */
+        -: 1447:      basic_string&
+        -: 1448:      replace(size_type __pos1, size_type __n1, const basic_string& __str,
+        -: 1449:	      size_type __pos2, size_type __n2)
+        -: 1450:      { return this->replace(__pos1, __n1, __str._M_data()
+        -: 1451:			     + __str._M_check(__pos2, "basic_string::replace"),
+        -: 1452:			     __str._M_limit(__pos2, __n2)); }
+        -: 1453:
+        -: 1454:      /**
+        -: 1455:       *  @brief  Replace characters with value of a C substring.
+        -: 1456:       *  @param __pos  Index of first character to replace.
+        -: 1457:       *  @param __n1  Number of characters to be replaced.
+        -: 1458:       *  @param __s  C string to insert.
+        -: 1459:       *  @param __n2  Number of characters from @a s to use.
+        -: 1460:       *  @return  Reference to this string.
+        -: 1461:       *  @throw  std::out_of_range  If @a pos1 > size().
+        -: 1462:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1463:       *
+        -: 1464:       *  Removes the characters in the range [__pos,__pos + __n1)
+        -: 1465:       *  from this string.  In place, the first @a __n2 characters of
+        -: 1466:       *  @a __s are inserted, or all of @a __s if @a __n2 is too large.  If
+        -: 1467:       *  @a __pos is beyond end of string, out_of_range is thrown.  If
+        -: 1468:       *  the length of result exceeds max_size(), length_error is
+        -: 1469:       *  thrown.  The value of the string doesn't change if an error
+        -: 1470:       *  is thrown.
+        -: 1471:      */
+        -: 1472:      basic_string&
+        -: 1473:      replace(size_type __pos, size_type __n1, const _CharT* __s,
+        -: 1474:	      size_type __n2);
+        -: 1475:
+        -: 1476:      /**
+        -: 1477:       *  @brief  Replace characters with value of a C string.
+        -: 1478:       *  @param __pos  Index of first character to replace.
+        -: 1479:       *  @param __n1  Number of characters to be replaced.
+        -: 1480:       *  @param __s  C string to insert.
+        -: 1481:       *  @return  Reference to this string.
+        -: 1482:       *  @throw  std::out_of_range  If @a pos > size().
+        -: 1483:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1484:       *
+        -: 1485:       *  Removes the characters in the range [__pos,__pos + __n1)
+        -: 1486:       *  from this string.  In place, the characters of @a __s are
+        -: 1487:       *  inserted.  If @a __pos is beyond end of string, out_of_range
+        -: 1488:       *  is thrown.  If the length of result exceeds max_size(),
+        -: 1489:       *  length_error is thrown.  The value of the string doesn't
+        -: 1490:       *  change if an error is thrown.
+        -: 1491:      */
+        -: 1492:      basic_string&
+        -: 1493:      replace(size_type __pos, size_type __n1, const _CharT* __s)
+        -: 1494:      {
+        -: 1495:	__glibcxx_requires_string(__s);
+        -: 1496:	return this->replace(__pos, __n1, __s, traits_type::length(__s));
+        -: 1497:      }
+        -: 1498:
+        -: 1499:      /**
+        -: 1500:       *  @brief  Replace characters with multiple characters.
+        -: 1501:       *  @param __pos  Index of first character to replace.
+        -: 1502:       *  @param __n1  Number of characters to be replaced.
+        -: 1503:       *  @param __n2  Number of characters to insert.
+        -: 1504:       *  @param __c  Character to insert.
+        -: 1505:       *  @return  Reference to this string.
+        -: 1506:       *  @throw  std::out_of_range  If @a __pos > size().
+        -: 1507:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1508:       *
+        -: 1509:       *  Removes the characters in the range [pos,pos + n1) from this
+        -: 1510:       *  string.  In place, @a __n2 copies of @a __c are inserted.
+        -: 1511:       *  If @a __pos is beyond end of string, out_of_range is thrown.
+        -: 1512:       *  If the length of result exceeds max_size(), length_error is
+        -: 1513:       *  thrown.  The value of the string doesn't change if an error
+        -: 1514:       *  is thrown.
+        -: 1515:      */
+        -: 1516:      basic_string&
+        -: 1517:      replace(size_type __pos, size_type __n1, size_type __n2, _CharT __c)
+        -: 1518:      { return _M_replace_aux(_M_check(__pos, "basic_string::replace"),
+        -: 1519:			      _M_limit(__pos, __n1), __n2, __c); }
+        -: 1520:
+        -: 1521:      /**
+        -: 1522:       *  @brief  Replace range of characters with string.
+        -: 1523:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1524:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1525:       *  @param __str  String value to insert.
+        -: 1526:       *  @return  Reference to this string.
+        -: 1527:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1528:       *
+        -: 1529:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1530:       *  the value of @a __str is inserted.  If the length of result
+        -: 1531:       *  exceeds max_size(), length_error is thrown.  The value of
+        -: 1532:       *  the string doesn't change if an error is thrown.
+        -: 1533:      */
+        -: 1534:      basic_string&
+        -: 1535:      replace(iterator __i1, iterator __i2, const basic_string& __str)
+        -: 1536:      { return this->replace(__i1, __i2, __str._M_data(), __str.size()); }
+        -: 1537:
+        -: 1538:      /**
+        -: 1539:       *  @brief  Replace range of characters with C substring.
+        -: 1540:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1541:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1542:       *  @param __s  C string value to insert.
+        -: 1543:       *  @param __n  Number of characters from s to insert.
+        -: 1544:       *  @return  Reference to this string.
+        -: 1545:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1546:       *
+        -: 1547:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1548:       *  the first @a __n characters of @a __s are inserted.  If the
+        -: 1549:       *  length of result exceeds max_size(), length_error is thrown.
+        -: 1550:       *  The value of the string doesn't change if an error is
+        -: 1551:       *  thrown.
+        -: 1552:      */
+        -: 1553:      basic_string&
+        -: 1554:      replace(iterator __i1, iterator __i2, const _CharT* __s, size_type __n)
+        -: 1555:      {
+        -: 1556:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1557:				 && __i2 <= _M_iend());
+        -: 1558:	return this->replace(__i1 - _M_ibegin(), __i2 - __i1, __s, __n);
+        -: 1559:      }
+        -: 1560:
+        -: 1561:      /**
+        -: 1562:       *  @brief  Replace range of characters with C string.
+        -: 1563:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1564:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1565:       *  @param __s  C string value to insert.
+        -: 1566:       *  @return  Reference to this string.
+        -: 1567:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1568:       *
+        -: 1569:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1570:       *  the characters of @a __s are inserted.  If the length of
+        -: 1571:       *  result exceeds max_size(), length_error is thrown.  The
+        -: 1572:       *  value of the string doesn't change if an error is thrown.
+        -: 1573:      */
+        -: 1574:      basic_string&
+        -: 1575:      replace(iterator __i1, iterator __i2, const _CharT* __s)
+        -: 1576:      {
+        -: 1577:	__glibcxx_requires_string(__s);
+        -: 1578:	return this->replace(__i1, __i2, __s, traits_type::length(__s));
+        -: 1579:      }
+        -: 1580:
+        -: 1581:      /**
+        -: 1582:       *  @brief  Replace range of characters with multiple characters
+        -: 1583:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1584:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1585:       *  @param __n  Number of characters to insert.
+        -: 1586:       *  @param __c  Character to insert.
+        -: 1587:       *  @return  Reference to this string.
+        -: 1588:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1589:       *
+        -: 1590:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1591:       *  @a __n copies of @a __c are inserted.  If the length of
+        -: 1592:       *  result exceeds max_size(), length_error is thrown.  The
+        -: 1593:       *  value of the string doesn't change if an error is thrown.
+        -: 1594:      */
+        -: 1595:      basic_string&
+        -: 1596:      replace(iterator __i1, iterator __i2, size_type __n, _CharT __c)
+        -: 1597:      {
+        -: 1598:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1599:				 && __i2 <= _M_iend());
+        -: 1600:	return _M_replace_aux(__i1 - _M_ibegin(), __i2 - __i1, __n, __c);
+        -: 1601:      }
+        -: 1602:
+        -: 1603:      /**
+        -: 1604:       *  @brief  Replace range of characters with range.
+        -: 1605:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1606:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1607:       *  @param __k1  Iterator referencing start of range to insert.
+        -: 1608:       *  @param __k2  Iterator referencing end of range to insert.
+        -: 1609:       *  @return  Reference to this string.
+        -: 1610:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1611:       *
+        -: 1612:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1613:       *  characters in the range [__k1,__k2) are inserted.  If the
+        -: 1614:       *  length of result exceeds max_size(), length_error is thrown.
+        -: 1615:       *  The value of the string doesn't change if an error is
+        -: 1616:       *  thrown.
+        -: 1617:      */
+        -: 1618:      template<class _InputIterator>
+        -: 1619:        basic_string&
+        -: 1620:        replace(iterator __i1, iterator __i2,
+        -: 1621:		_InputIterator __k1, _InputIterator __k2)
+        -: 1622:        {
+        -: 1623:	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1624:				   && __i2 <= _M_iend());
+        -: 1625:	  __glibcxx_requires_valid_range(__k1, __k2);
+        -: 1626:	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
+        -: 1627:	  return _M_replace_dispatch(__i1, __i2, __k1, __k2, _Integral());
+        -: 1628:	}
+        -: 1629:
+        -: 1630:      // Specializations for the common case of pointer and iterator:
+        -: 1631:      // useful to avoid the overhead of temporary buffering in _M_replace.
+        -: 1632:      basic_string&
+        -: 1633:      replace(iterator __i1, iterator __i2, _CharT* __k1, _CharT* __k2)
+        -: 1634:      {
+        -: 1635:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1636:				 && __i2 <= _M_iend());
+        -: 1637:	__glibcxx_requires_valid_range(__k1, __k2);
+        -: 1638:	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+        -: 1639:			     __k1, __k2 - __k1);
+        -: 1640:      }
+        -: 1641:
+        -: 1642:      basic_string&
+        -: 1643:      replace(iterator __i1, iterator __i2,
+        -: 1644:	      const _CharT* __k1, const _CharT* __k2)
+        -: 1645:      {
+        -: 1646:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1647:				 && __i2 <= _M_iend());
+        -: 1648:	__glibcxx_requires_valid_range(__k1, __k2);
+        -: 1649:	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+        -: 1650:			     __k1, __k2 - __k1);
+        -: 1651:      }
+        -: 1652:
+        -: 1653:      basic_string&
+        -: 1654:      replace(iterator __i1, iterator __i2, iterator __k1, iterator __k2)
+        -: 1655:      {
+        -: 1656:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1657:				 && __i2 <= _M_iend());
+        -: 1658:	__glibcxx_requires_valid_range(__k1, __k2);
+        -: 1659:	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+        -: 1660:			     __k1.base(), __k2 - __k1);
+        -: 1661:      }
+        -: 1662:
+        -: 1663:      basic_string&
+        -: 1664:      replace(iterator __i1, iterator __i2,
+        -: 1665:	      const_iterator __k1, const_iterator __k2)
+        -: 1666:      {
+        -: 1667:	_GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
+        -: 1668:				 && __i2 <= _M_iend());
+        -: 1669:	__glibcxx_requires_valid_range(__k1, __k2);
+        -: 1670:	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
+        -: 1671:			     __k1.base(), __k2 - __k1);
+        -: 1672:      }
+        -: 1673:      
+        -: 1674:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 1675:      /**
+        -: 1676:       *  @brief  Replace range of characters with initializer_list.
+        -: 1677:       *  @param __i1  Iterator referencing start of range to replace.
+        -: 1678:       *  @param __i2  Iterator referencing end of range to replace.
+        -: 1679:       *  @param __l  The initializer_list of characters to insert.
+        -: 1680:       *  @return  Reference to this string.
+        -: 1681:       *  @throw  std::length_error  If new length exceeds @c max_size().
+        -: 1682:       *
+        -: 1683:       *  Removes the characters in the range [__i1,__i2).  In place,
+        -: 1684:       *  characters in the range [__k1,__k2) are inserted.  If the
+        -: 1685:       *  length of result exceeds max_size(), length_error is thrown.
+        -: 1686:       *  The value of the string doesn't change if an error is
+        -: 1687:       *  thrown.
+        -: 1688:      */
+        -: 1689:      basic_string& replace(iterator __i1, iterator __i2,
+        -: 1690:			    initializer_list<_CharT> __l)
+        -: 1691:      { return this->replace(__i1, __i2, __l.begin(), __l.end()); }
+        -: 1692:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -: 1693:
+        -: 1694:    private:
+        -: 1695:      template<class _Integer>
+        -: 1696:	basic_string&
+        -: 1697:	_M_replace_dispatch(iterator __i1, iterator __i2, _Integer __n,
+        -: 1698:			    _Integer __val, __true_type)
+        -: 1699:        { return _M_replace_aux(__i1 - _M_ibegin(), __i2 - __i1, __n, __val); }
+        -: 1700:
+        -: 1701:      template<class _InputIterator>
+        -: 1702:	basic_string&
+        -: 1703:	_M_replace_dispatch(iterator __i1, iterator __i2, _InputIterator __k1,
+        -: 1704:			    _InputIterator __k2, __false_type);
+        -: 1705:
+        -: 1706:      basic_string&
+        -: 1707:      _M_replace_aux(size_type __pos1, size_type __n1, size_type __n2,
+        -: 1708:		     _CharT __c);
+        -: 1709:
+        -: 1710:      basic_string&
+        -: 1711:      _M_replace_safe(size_type __pos1, size_type __n1, const _CharT* __s,
+        -: 1712:		      size_type __n2);
+        -: 1713:
+        -: 1714:      // _S_construct_aux is used to implement the 21.3.1 para 15 which
+        -: 1715:      // requires special behaviour if _InIter is an integral type
+        -: 1716:      template<class _InIterator>
+        -: 1717:        static _CharT*
+function _ZNSs16_S_construct_auxIPcEES0_T_S1_RKSaIcESt12__false_type called 0 returned 0% blocks executed 0%
+    #####: 1718:        _S_construct_aux(_InIterator __beg, _InIterator __end,
+        -: 1719:			 const _Alloc& __a, __false_type)
+        -: 1720:	{
+        -: 1721:          typedef typename iterator_traits<_InIterator>::iterator_category _Tag;
+    #####: 1722:          return _S_construct(__beg, __end, __a, _Tag());
+branch  0 never executed
+branch  1 never executed
+call    2 never executed
+call    3 never executed
+        -: 1723:	}
+        -: 1724:
+        -: 1725:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -: 1726:      // 438. Ambiguity in the "do the right thing" clause
+        -: 1727:      template<class _Integer>
+        -: 1728:        static _CharT*
+        -: 1729:        _S_construct_aux(_Integer __beg, _Integer __end,
+        -: 1730:			 const _Alloc& __a, __true_type)
+        -: 1731:        { return _S_construct_aux_2(static_cast<size_type>(__beg),
+        -: 1732:				    __end, __a); }
+        -: 1733:
+        -: 1734:      static _CharT*
+        -: 1735:      _S_construct_aux_2(size_type __req, _CharT __c, const _Alloc& __a)
+        -: 1736:      { return _S_construct(__req, __c, __a); }
+        -: 1737:
+        -: 1738:      template<class _InIterator>
+        -: 1739:        static _CharT*
+function _ZNSs12_S_constructIPcEES0_T_S1_RKSaIcE called 0 returned 0% blocks executed 0%
+    #####: 1740:        _S_construct(_InIterator __beg, _InIterator __end, const _Alloc& __a)
+        -: 1741:	{
+        -: 1742:	  typedef typename std::__is_integer<_InIterator>::__type _Integral;
+    #####: 1743:	  return _S_construct_aux(__beg, __end, __a, _Integral());
+branch  0 never executed
+branch  1 never executed
+call    2 never executed
+call    3 never executed
+        -: 1744:        }
+        -: 1745:
+        -: 1746:      // For Input Iterators, used in istreambuf_iterators, etc.
+        -: 1747:      template<class _InIterator>
+        -: 1748:        static _CharT*
+        -: 1749:         _S_construct(_InIterator __beg, _InIterator __end, const _Alloc& __a,
+        -: 1750:		      input_iterator_tag);
+        -: 1751:
+        -: 1752:      // For forward_iterators up to random_access_iterators, used for
+        -: 1753:      // string::iterator, _CharT*, etc.
+        -: 1754:      template<class _FwdIterator>
+        -: 1755:        static _CharT*
+        -: 1756:        _S_construct(_FwdIterator __beg, _FwdIterator __end, const _Alloc& __a,
+        -: 1757:		     forward_iterator_tag);
+        -: 1758:
+        -: 1759:      static _CharT*
+        -: 1760:      _S_construct(size_type __req, _CharT __c, const _Alloc& __a);
+        -: 1761:
+        -: 1762:    public:
+        -: 1763:
+        -: 1764:      /**
+        -: 1765:       *  @brief  Copy substring into C string.
+        -: 1766:       *  @param __s  C string to copy value into.
+        -: 1767:       *  @param __n  Number of characters to copy.
+        -: 1768:       *  @param __pos  Index of first character to copy.
+        -: 1769:       *  @return  Number of characters actually copied
+        -: 1770:       *  @throw  std::out_of_range  If __pos > size().
+        -: 1771:       *
+        -: 1772:       *  Copies up to @a __n characters starting at @a __pos into the
+        -: 1773:       *  C string @a __s.  If @a __pos is %greater than size(),
+        -: 1774:       *  out_of_range is thrown.
+        -: 1775:      */
+        -: 1776:      size_type
+        -: 1777:      copy(_CharT* __s, size_type __n, size_type __pos = 0) const;
+        -: 1778:
+        -: 1779:      /**
+        -: 1780:       *  @brief  Swap contents with another string.
+        -: 1781:       *  @param __s  String to swap with.
+        -: 1782:       *
+        -: 1783:       *  Exchanges the contents of this string with that of @a __s in constant
+        -: 1784:       *  time.
+        -: 1785:      */
+        -: 1786:      void
+        -: 1787:      swap(basic_string& __s);
+        -: 1788:
+        -: 1789:      // String operations:
+        -: 1790:      /**
+        -: 1791:       *  @brief  Return const pointer to null-terminated contents.
+        -: 1792:       *
+        -: 1793:       *  This is a handle to internal data.  Do not modify or dire things may
+        -: 1794:       *  happen.
+        -: 1795:      */
+        -: 1796:      const _CharT*
+        -: 1797:      c_str() const _GLIBCXX_NOEXCEPT
+        -: 1798:      { return _M_data(); }
+        -: 1799:
+        -: 1800:      /**
+        -: 1801:       *  @brief  Return const pointer to contents.
+        -: 1802:       *
+        -: 1803:       *  This is a handle to internal data.  Do not modify or dire things may
+        -: 1804:       *  happen.
+        -: 1805:      */
+        -: 1806:      const _CharT*
+        -: 1807:      data() const _GLIBCXX_NOEXCEPT
+        -: 1808:      { return _M_data(); }
+        -: 1809:
+        -: 1810:      /**
+        -: 1811:       *  @brief  Return copy of allocator used to construct this string.
+        -: 1812:      */
+        -: 1813:      allocator_type
+        -: 1814:      get_allocator() const _GLIBCXX_NOEXCEPT
+        -: 1815:      { return _M_dataplus; }
+        -: 1816:
+        -: 1817:      /**
+        -: 1818:       *  @brief  Find position of a C substring.
+        -: 1819:       *  @param __s  C string to locate.
+        -: 1820:       *  @param __pos  Index of character to search from.
+        -: 1821:       *  @param __n  Number of characters from @a s to search for.
+        -: 1822:       *  @return  Index of start of first occurrence.
+        -: 1823:       *
+        -: 1824:       *  Starting from @a __pos, searches forward for the first @a
+        -: 1825:       *  __n characters in @a __s within this string.  If found,
+        -: 1826:       *  returns the index where it begins.  If not found, returns
+        -: 1827:       *  npos.
+        -: 1828:      */
+        -: 1829:      size_type
+        -: 1830:      find(const _CharT* __s, size_type __pos, size_type __n) const;
+        -: 1831:
+        -: 1832:      /**
+        -: 1833:       *  @brief  Find position of a string.
+        -: 1834:       *  @param __str  String to locate.
+        -: 1835:       *  @param __pos  Index of character to search from (default 0).
+        -: 1836:       *  @return  Index of start of first occurrence.
+        -: 1837:       *
+        -: 1838:       *  Starting from @a __pos, searches forward for value of @a __str within
+        -: 1839:       *  this string.  If found, returns the index where it begins.  If not
+        -: 1840:       *  found, returns npos.
+        -: 1841:      */
+        -: 1842:      size_type
+        -: 1843:      find(const basic_string& __str, size_type __pos = 0) const
+        -: 1844:	_GLIBCXX_NOEXCEPT
+        -: 1845:      { return this->find(__str.data(), __pos, __str.size()); }
+        -: 1846:
+        -: 1847:      /**
+        -: 1848:       *  @brief  Find position of a C string.
+        -: 1849:       *  @param __s  C string to locate.
+        -: 1850:       *  @param __pos  Index of character to search from (default 0).
+        -: 1851:       *  @return  Index of start of first occurrence.
+        -: 1852:       *
+        -: 1853:       *  Starting from @a __pos, searches forward for the value of @a
+        -: 1854:       *  __s within this string.  If found, returns the index where
+        -: 1855:       *  it begins.  If not found, returns npos.
+        -: 1856:      */
+        -: 1857:      size_type
+        -: 1858:      find(const _CharT* __s, size_type __pos = 0) const
+        -: 1859:      {
+        -: 1860:	__glibcxx_requires_string(__s);
+        -: 1861:	return this->find(__s, __pos, traits_type::length(__s));
+        -: 1862:      }
+        -: 1863:
+        -: 1864:      /**
+        -: 1865:       *  @brief  Find position of a character.
+        -: 1866:       *  @param __c  Character to locate.
+        -: 1867:       *  @param __pos  Index of character to search from (default 0).
+        -: 1868:       *  @return  Index of first occurrence.
+        -: 1869:       *
+        -: 1870:       *  Starting from @a __pos, searches forward for @a __c within
+        -: 1871:       *  this string.  If found, returns the index where it was
+        -: 1872:       *  found.  If not found, returns npos.
+        -: 1873:      */
+        -: 1874:      size_type
+        -: 1875:      find(_CharT __c, size_type __pos = 0) const _GLIBCXX_NOEXCEPT;
+        -: 1876:
+        -: 1877:      /**
+        -: 1878:       *  @brief  Find last position of a string.
+        -: 1879:       *  @param __str  String to locate.
+        -: 1880:       *  @param __pos  Index of character to search back from (default end).
+        -: 1881:       *  @return  Index of start of last occurrence.
+        -: 1882:       *
+        -: 1883:       *  Starting from @a __pos, searches backward for value of @a
+        -: 1884:       *  __str within this string.  If found, returns the index where
+        -: 1885:       *  it begins.  If not found, returns npos.
+        -: 1886:      */
+        -: 1887:      size_type
+        -: 1888:      rfind(const basic_string& __str, size_type __pos = npos) const
+        -: 1889:	_GLIBCXX_NOEXCEPT
+        -: 1890:      { return this->rfind(__str.data(), __pos, __str.size()); }
+        -: 1891:
+        -: 1892:      /**
+        -: 1893:       *  @brief  Find last position of a C substring.
+        -: 1894:       *  @param __s  C string to locate.
+        -: 1895:       *  @param __pos  Index of character to search back from.
+        -: 1896:       *  @param __n  Number of characters from s to search for.
+        -: 1897:       *  @return  Index of start of last occurrence.
+        -: 1898:       *
+        -: 1899:       *  Starting from @a __pos, searches backward for the first @a
+        -: 1900:       *  __n characters in @a __s within this string.  If found,
+        -: 1901:       *  returns the index where it begins.  If not found, returns
+        -: 1902:       *  npos.
+        -: 1903:      */
+        -: 1904:      size_type
+        -: 1905:      rfind(const _CharT* __s, size_type __pos, size_type __n) const;
+        -: 1906:
+        -: 1907:      /**
+        -: 1908:       *  @brief  Find last position of a C string.
+        -: 1909:       *  @param __s  C string to locate.
+        -: 1910:       *  @param __pos  Index of character to start search at (default end).
+        -: 1911:       *  @return  Index of start of  last occurrence.
+        -: 1912:       *
+        -: 1913:       *  Starting from @a __pos, searches backward for the value of
+        -: 1914:       *  @a __s within this string.  If found, returns the index
+        -: 1915:       *  where it begins.  If not found, returns npos.
+        -: 1916:      */
+        -: 1917:      size_type
+        -: 1918:      rfind(const _CharT* __s, size_type __pos = npos) const
+        -: 1919:      {
+        -: 1920:	__glibcxx_requires_string(__s);
+        -: 1921:	return this->rfind(__s, __pos, traits_type::length(__s));
+        -: 1922:      }
+        -: 1923:
+        -: 1924:      /**
+        -: 1925:       *  @brief  Find last position of a character.
+        -: 1926:       *  @param __c  Character to locate.
+        -: 1927:       *  @param __pos  Index of character to search back from (default end).
+        -: 1928:       *  @return  Index of last occurrence.
+        -: 1929:       *
+        -: 1930:       *  Starting from @a __pos, searches backward for @a __c within
+        -: 1931:       *  this string.  If found, returns the index where it was
+        -: 1932:       *  found.  If not found, returns npos.
+        -: 1933:      */
+        -: 1934:      size_type
+        -: 1935:      rfind(_CharT __c, size_type __pos = npos) const _GLIBCXX_NOEXCEPT;
+        -: 1936:
+        -: 1937:      /**
+        -: 1938:       *  @brief  Find position of a character of string.
+        -: 1939:       *  @param __str  String containing characters to locate.
+        -: 1940:       *  @param __pos  Index of character to search from (default 0).
+        -: 1941:       *  @return  Index of first occurrence.
+        -: 1942:       *
+        -: 1943:       *  Starting from @a __pos, searches forward for one of the
+        -: 1944:       *  characters of @a __str within this string.  If found,
+        -: 1945:       *  returns the index where it was found.  If not found, returns
+        -: 1946:       *  npos.
+        -: 1947:      */
+        -: 1948:      size_type
+        -: 1949:      find_first_of(const basic_string& __str, size_type __pos = 0) const
+        -: 1950:	_GLIBCXX_NOEXCEPT
+        -: 1951:      { return this->find_first_of(__str.data(), __pos, __str.size()); }
+        -: 1952:
+        -: 1953:      /**
+        -: 1954:       *  @brief  Find position of a character of C substring.
+        -: 1955:       *  @param __s  String containing characters to locate.
+        -: 1956:       *  @param __pos  Index of character to search from.
+        -: 1957:       *  @param __n  Number of characters from s to search for.
+        -: 1958:       *  @return  Index of first occurrence.
+        -: 1959:       *
+        -: 1960:       *  Starting from @a __pos, searches forward for one of the
+        -: 1961:       *  first @a __n characters of @a __s within this string.  If
+        -: 1962:       *  found, returns the index where it was found.  If not found,
+        -: 1963:       *  returns npos.
+        -: 1964:      */
+        -: 1965:      size_type
+        -: 1966:      find_first_of(const _CharT* __s, size_type __pos, size_type __n) const;
+        -: 1967:
+        -: 1968:      /**
+        -: 1969:       *  @brief  Find position of a character of C string.
+        -: 1970:       *  @param __s  String containing characters to locate.
+        -: 1971:       *  @param __pos  Index of character to search from (default 0).
+        -: 1972:       *  @return  Index of first occurrence.
+        -: 1973:       *
+        -: 1974:       *  Starting from @a __pos, searches forward for one of the
+        -: 1975:       *  characters of @a __s within this string.  If found, returns
+        -: 1976:       *  the index where it was found.  If not found, returns npos.
+        -: 1977:      */
+        -: 1978:      size_type
+        -: 1979:      find_first_of(const _CharT* __s, size_type __pos = 0) const
+        -: 1980:      {
+        -: 1981:	__glibcxx_requires_string(__s);
+        -: 1982:	return this->find_first_of(__s, __pos, traits_type::length(__s));
+        -: 1983:      }
+        -: 1984:
+        -: 1985:      /**
+        -: 1986:       *  @brief  Find position of a character.
+        -: 1987:       *  @param __c  Character to locate.
+        -: 1988:       *  @param __pos  Index of character to search from (default 0).
+        -: 1989:       *  @return  Index of first occurrence.
+        -: 1990:       *
+        -: 1991:       *  Starting from @a __pos, searches forward for the character
+        -: 1992:       *  @a __c within this string.  If found, returns the index
+        -: 1993:       *  where it was found.  If not found, returns npos.
+        -: 1994:       *
+        -: 1995:       *  Note: equivalent to find(__c, __pos).
+        -: 1996:      */
+        -: 1997:      size_type
+        -: 1998:      find_first_of(_CharT __c, size_type __pos = 0) const _GLIBCXX_NOEXCEPT
+        -: 1999:      { return this->find(__c, __pos); }
+        -: 2000:
+        -: 2001:      /**
+        -: 2002:       *  @brief  Find last position of a character of string.
+        -: 2003:       *  @param __str  String containing characters to locate.
+        -: 2004:       *  @param __pos  Index of character to search back from (default end).
+        -: 2005:       *  @return  Index of last occurrence.
+        -: 2006:       *
+        -: 2007:       *  Starting from @a __pos, searches backward for one of the
+        -: 2008:       *  characters of @a __str within this string.  If found,
+        -: 2009:       *  returns the index where it was found.  If not found, returns
+        -: 2010:       *  npos.
+        -: 2011:      */
+        -: 2012:      size_type
+        -: 2013:      find_last_of(const basic_string& __str, size_type __pos = npos) const
+        -: 2014:	_GLIBCXX_NOEXCEPT
+        -: 2015:      { return this->find_last_of(__str.data(), __pos, __str.size()); }
+        -: 2016:
+        -: 2017:      /**
+        -: 2018:       *  @brief  Find last position of a character of C substring.
+        -: 2019:       *  @param __s  C string containing characters to locate.
+        -: 2020:       *  @param __pos  Index of character to search back from.
+        -: 2021:       *  @param __n  Number of characters from s to search for.
+        -: 2022:       *  @return  Index of last occurrence.
+        -: 2023:       *
+        -: 2024:       *  Starting from @a __pos, searches backward for one of the
+        -: 2025:       *  first @a __n characters of @a __s within this string.  If
+        -: 2026:       *  found, returns the index where it was found.  If not found,
+        -: 2027:       *  returns npos.
+        -: 2028:      */
+        -: 2029:      size_type
+        -: 2030:      find_last_of(const _CharT* __s, size_type __pos, size_type __n) const;
+        -: 2031:
+        -: 2032:      /**
+        -: 2033:       *  @brief  Find last position of a character of C string.
+        -: 2034:       *  @param __s  C string containing characters to locate.
+        -: 2035:       *  @param __pos  Index of character to search back from (default end).
+        -: 2036:       *  @return  Index of last occurrence.
+        -: 2037:       *
+        -: 2038:       *  Starting from @a __pos, searches backward for one of the
+        -: 2039:       *  characters of @a __s within this string.  If found, returns
+        -: 2040:       *  the index where it was found.  If not found, returns npos.
+        -: 2041:      */
+        -: 2042:      size_type
+        -: 2043:      find_last_of(const _CharT* __s, size_type __pos = npos) const
+        -: 2044:      {
+        -: 2045:	__glibcxx_requires_string(__s);
+        -: 2046:	return this->find_last_of(__s, __pos, traits_type::length(__s));
+        -: 2047:      }
+        -: 2048:
+        -: 2049:      /**
+        -: 2050:       *  @brief  Find last position of a character.
+        -: 2051:       *  @param __c  Character to locate.
+        -: 2052:       *  @param __pos  Index of character to search back from (default end).
+        -: 2053:       *  @return  Index of last occurrence.
+        -: 2054:       *
+        -: 2055:       *  Starting from @a __pos, searches backward for @a __c within
+        -: 2056:       *  this string.  If found, returns the index where it was
+        -: 2057:       *  found.  If not found, returns npos.
+        -: 2058:       *
+        -: 2059:       *  Note: equivalent to rfind(__c, __pos).
+        -: 2060:      */
+        -: 2061:      size_type
+        -: 2062:      find_last_of(_CharT __c, size_type __pos = npos) const _GLIBCXX_NOEXCEPT
+        -: 2063:      { return this->rfind(__c, __pos); }
+        -: 2064:
+        -: 2065:      /**
+        -: 2066:       *  @brief  Find position of a character not in string.
+        -: 2067:       *  @param __str  String containing characters to avoid.
+        -: 2068:       *  @param __pos  Index of character to search from (default 0).
+        -: 2069:       *  @return  Index of first occurrence.
+        -: 2070:       *
+        -: 2071:       *  Starting from @a __pos, searches forward for a character not contained
+        -: 2072:       *  in @a __str within this string.  If found, returns the index where it
+        -: 2073:       *  was found.  If not found, returns npos.
+        -: 2074:      */
+        -: 2075:      size_type
+        -: 2076:      find_first_not_of(const basic_string& __str, size_type __pos = 0) const
+        -: 2077:	_GLIBCXX_NOEXCEPT
+        -: 2078:      { return this->find_first_not_of(__str.data(), __pos, __str.size()); }
+        -: 2079:
+        -: 2080:      /**
+        -: 2081:       *  @brief  Find position of a character not in C substring.
+        -: 2082:       *  @param __s  C string containing characters to avoid.
+        -: 2083:       *  @param __pos  Index of character to search from.
+        -: 2084:       *  @param __n  Number of characters from __s to consider.
+        -: 2085:       *  @return  Index of first occurrence.
+        -: 2086:       *
+        -: 2087:       *  Starting from @a __pos, searches forward for a character not
+        -: 2088:       *  contained in the first @a __n characters of @a __s within
+        -: 2089:       *  this string.  If found, returns the index where it was
+        -: 2090:       *  found.  If not found, returns npos.
+        -: 2091:      */
+        -: 2092:      size_type
+        -: 2093:      find_first_not_of(const _CharT* __s, size_type __pos,
+        -: 2094:			size_type __n) const;
+        -: 2095:
+        -: 2096:      /**
+        -: 2097:       *  @brief  Find position of a character not in C string.
+        -: 2098:       *  @param __s  C string containing characters to avoid.
+        -: 2099:       *  @param __pos  Index of character to search from (default 0).
+        -: 2100:       *  @return  Index of first occurrence.
+        -: 2101:       *
+        -: 2102:       *  Starting from @a __pos, searches forward for a character not
+        -: 2103:       *  contained in @a __s within this string.  If found, returns
+        -: 2104:       *  the index where it was found.  If not found, returns npos.
+        -: 2105:      */
+        -: 2106:      size_type
+        -: 2107:      find_first_not_of(const _CharT* __s, size_type __pos = 0) const
+        -: 2108:      {
+        -: 2109:	__glibcxx_requires_string(__s);
+        -: 2110:	return this->find_first_not_of(__s, __pos, traits_type::length(__s));
+        -: 2111:      }
+        -: 2112:
+        -: 2113:      /**
+        -: 2114:       *  @brief  Find position of a different character.
+        -: 2115:       *  @param __c  Character to avoid.
+        -: 2116:       *  @param __pos  Index of character to search from (default 0).
+        -: 2117:       *  @return  Index of first occurrence.
+        -: 2118:       *
+        -: 2119:       *  Starting from @a __pos, searches forward for a character
+        -: 2120:       *  other than @a __c within this string.  If found, returns the
+        -: 2121:       *  index where it was found.  If not found, returns npos.
+        -: 2122:      */
+        -: 2123:      size_type
+        -: 2124:      find_first_not_of(_CharT __c, size_type __pos = 0) const
+        -: 2125:	_GLIBCXX_NOEXCEPT;
+        -: 2126:
+        -: 2127:      /**
+        -: 2128:       *  @brief  Find last position of a character not in string.
+        -: 2129:       *  @param __str  String containing characters to avoid.
+        -: 2130:       *  @param __pos  Index of character to search back from (default end).
+        -: 2131:       *  @return  Index of last occurrence.
+        -: 2132:       *
+        -: 2133:       *  Starting from @a __pos, searches backward for a character
+        -: 2134:       *  not contained in @a __str within this string.  If found,
+        -: 2135:       *  returns the index where it was found.  If not found, returns
+        -: 2136:       *  npos.
+        -: 2137:      */
+        -: 2138:      size_type
+        -: 2139:      find_last_not_of(const basic_string& __str, size_type __pos = npos) const
+        -: 2140:	_GLIBCXX_NOEXCEPT
+        -: 2141:      { return this->find_last_not_of(__str.data(), __pos, __str.size()); }
+        -: 2142:
+        -: 2143:      /**
+        -: 2144:       *  @brief  Find last position of a character not in C substring.
+        -: 2145:       *  @param __s  C string containing characters to avoid.
+        -: 2146:       *  @param __pos  Index of character to search back from.
+        -: 2147:       *  @param __n  Number of characters from s to consider.
+        -: 2148:       *  @return  Index of last occurrence.
+        -: 2149:       *
+        -: 2150:       *  Starting from @a __pos, searches backward for a character not
+        -: 2151:       *  contained in the first @a __n characters of @a __s within this string.
+        -: 2152:       *  If found, returns the index where it was found.  If not found,
+        -: 2153:       *  returns npos.
+        -: 2154:      */
+        -: 2155:      size_type
+        -: 2156:      find_last_not_of(const _CharT* __s, size_type __pos,
+        -: 2157:		       size_type __n) const;
+        -: 2158:      /**
+        -: 2159:       *  @brief  Find last position of a character not in C string.
+        -: 2160:       *  @param __s  C string containing characters to avoid.
+        -: 2161:       *  @param __pos  Index of character to search back from (default end).
+        -: 2162:       *  @return  Index of last occurrence.
+        -: 2163:       *
+        -: 2164:       *  Starting from @a __pos, searches backward for a character
+        -: 2165:       *  not contained in @a __s within this string.  If found,
+        -: 2166:       *  returns the index where it was found.  If not found, returns
+        -: 2167:       *  npos.
+        -: 2168:      */
+        -: 2169:      size_type
+        -: 2170:      find_last_not_of(const _CharT* __s, size_type __pos = npos) const
+        -: 2171:      {
+        -: 2172:	__glibcxx_requires_string(__s);
+        -: 2173:	return this->find_last_not_of(__s, __pos, traits_type::length(__s));
+        -: 2174:      }
+        -: 2175:
+        -: 2176:      /**
+        -: 2177:       *  @brief  Find last position of a different character.
+        -: 2178:       *  @param __c  Character to avoid.
+        -: 2179:       *  @param __pos  Index of character to search back from (default end).
+        -: 2180:       *  @return  Index of last occurrence.
+        -: 2181:       *
+        -: 2182:       *  Starting from @a __pos, searches backward for a character other than
+        -: 2183:       *  @a __c within this string.  If found, returns the index where it was
+        -: 2184:       *  found.  If not found, returns npos.
+        -: 2185:      */
+        -: 2186:      size_type
+        -: 2187:      find_last_not_of(_CharT __c, size_type __pos = npos) const
+        -: 2188:	_GLIBCXX_NOEXCEPT;
+        -: 2189:
+        -: 2190:      /**
+        -: 2191:       *  @brief  Get a substring.
+        -: 2192:       *  @param __pos  Index of first character (default 0).
+        -: 2193:       *  @param __n  Number of characters in substring (default remainder).
+        -: 2194:       *  @return  The new string.
+        -: 2195:       *  @throw  std::out_of_range  If __pos > size().
+        -: 2196:       *
+        -: 2197:       *  Construct and return a new string using the @a __n
+        -: 2198:       *  characters starting at @a __pos.  If the string is too
+        -: 2199:       *  short, use the remainder of the characters.  If @a __pos is
+        -: 2200:       *  beyond the end of the string, out_of_range is thrown.
+        -: 2201:      */
+        -: 2202:      basic_string
+        -: 2203:      substr(size_type __pos = 0, size_type __n = npos) const
+        -: 2204:      { return basic_string(*this,
+        -: 2205:			    _M_check(__pos, "basic_string::substr"), __n); }
+        -: 2206:
+        -: 2207:      /**
+        -: 2208:       *  @brief  Compare to a string.
+        -: 2209:       *  @param __str  String to compare against.
+        -: 2210:       *  @return  Integer < 0, 0, or > 0.
+        -: 2211:       *
+        -: 2212:       *  Returns an integer < 0 if this string is ordered before @a
+        -: 2213:       *  __str, 0 if their values are equivalent, or > 0 if this
+        -: 2214:       *  string is ordered after @a __str.  Determines the effective
+        -: 2215:       *  length rlen of the strings to compare as the smallest of
+        -: 2216:       *  size() and str.size().  The function then compares the two
+        -: 2217:       *  strings by calling traits::compare(data(), str.data(),rlen).
+        -: 2218:       *  If the result of the comparison is nonzero returns it,
+        -: 2219:       *  otherwise the shorter one is ordered first.
+        -: 2220:      */
+        -: 2221:      int
+        -: 2222:      compare(const basic_string& __str) const
+        -: 2223:      {
+        -: 2224:	const size_type __size = this->size();
+        -: 2225:	const size_type __osize = __str.size();
+        -: 2226:	const size_type __len = std::min(__size, __osize);
+        -: 2227:
+        -: 2228:	int __r = traits_type::compare(_M_data(), __str.data(), __len);
+        -: 2229:	if (!__r)
+        -: 2230:	  __r = _S_compare(__size, __osize);
+        -: 2231:	return __r;
+        -: 2232:      }
+        -: 2233:
+        -: 2234:      /**
+        -: 2235:       *  @brief  Compare substring to a string.
+        -: 2236:       *  @param __pos  Index of first character of substring.
+        -: 2237:       *  @param __n  Number of characters in substring.
+        -: 2238:       *  @param __str  String to compare against.
+        -: 2239:       *  @return  Integer < 0, 0, or > 0.
+        -: 2240:       *
+        -: 2241:       *  Form the substring of this string from the @a __n characters
+        -: 2242:       *  starting at @a __pos.  Returns an integer < 0 if the
+        -: 2243:       *  substring is ordered before @a __str, 0 if their values are
+        -: 2244:       *  equivalent, or > 0 if the substring is ordered after @a
+        -: 2245:       *  __str.  Determines the effective length rlen of the strings
+        -: 2246:       *  to compare as the smallest of the length of the substring
+        -: 2247:       *  and @a __str.size().  The function then compares the two
+        -: 2248:       *  strings by calling
+        -: 2249:       *  traits::compare(substring.data(),str.data(),rlen).  If the
+        -: 2250:       *  result of the comparison is nonzero returns it, otherwise
+        -: 2251:       *  the shorter one is ordered first.
+        -: 2252:      */
+        -: 2253:      int
+        -: 2254:      compare(size_type __pos, size_type __n, const basic_string& __str) const;
+        -: 2255:
+        -: 2256:      /**
+        -: 2257:       *  @brief  Compare substring to a substring.
+        -: 2258:       *  @param __pos1  Index of first character of substring.
+        -: 2259:       *  @param __n1  Number of characters in substring.
+        -: 2260:       *  @param __str  String to compare against.
+        -: 2261:       *  @param __pos2  Index of first character of substring of str.
+        -: 2262:       *  @param __n2  Number of characters in substring of str.
+        -: 2263:       *  @return  Integer < 0, 0, or > 0.
+        -: 2264:       *
+        -: 2265:       *  Form the substring of this string from the @a __n1
+        -: 2266:       *  characters starting at @a __pos1.  Form the substring of @a
+        -: 2267:       *  __str from the @a __n2 characters starting at @a __pos2.
+        -: 2268:       *  Returns an integer < 0 if this substring is ordered before
+        -: 2269:       *  the substring of @a __str, 0 if their values are equivalent,
+        -: 2270:       *  or > 0 if this substring is ordered after the substring of
+        -: 2271:       *  @a __str.  Determines the effective length rlen of the
+        -: 2272:       *  strings to compare as the smallest of the lengths of the
+        -: 2273:       *  substrings.  The function then compares the two strings by
+        -: 2274:       *  calling
+        -: 2275:       *  traits::compare(substring.data(),str.substr(pos2,n2).data(),rlen).
+        -: 2276:       *  If the result of the comparison is nonzero returns it,
+        -: 2277:       *  otherwise the shorter one is ordered first.
+        -: 2278:      */
+        -: 2279:      int
+        -: 2280:      compare(size_type __pos1, size_type __n1, const basic_string& __str,
+        -: 2281:	      size_type __pos2, size_type __n2) const;
+        -: 2282:
+        -: 2283:      /**
+        -: 2284:       *  @brief  Compare to a C string.
+        -: 2285:       *  @param __s  C string to compare against.
+        -: 2286:       *  @return  Integer < 0, 0, or > 0.
+        -: 2287:       *
+        -: 2288:       *  Returns an integer < 0 if this string is ordered before @a __s, 0 if
+        -: 2289:       *  their values are equivalent, or > 0 if this string is ordered after
+        -: 2290:       *  @a __s.  Determines the effective length rlen of the strings to
+        -: 2291:       *  compare as the smallest of size() and the length of a string
+        -: 2292:       *  constructed from @a __s.  The function then compares the two strings
+        -: 2293:       *  by calling traits::compare(data(),s,rlen).  If the result of the
+        -: 2294:       *  comparison is nonzero returns it, otherwise the shorter one is
+        -: 2295:       *  ordered first.
+        -: 2296:      */
+        -: 2297:      int
+        -: 2298:      compare(const _CharT* __s) const;
+        -: 2299:
+        -: 2300:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -: 2301:      // 5 String::compare specification questionable
+        -: 2302:      /**
+        -: 2303:       *  @brief  Compare substring to a C string.
+        -: 2304:       *  @param __pos  Index of first character of substring.
+        -: 2305:       *  @param __n1  Number of characters in substring.
+        -: 2306:       *  @param __s  C string to compare against.
+        -: 2307:       *  @return  Integer < 0, 0, or > 0.
+        -: 2308:       *
+        -: 2309:       *  Form the substring of this string from the @a __n1
+        -: 2310:       *  characters starting at @a pos.  Returns an integer < 0 if
+        -: 2311:       *  the substring is ordered before @a __s, 0 if their values
+        -: 2312:       *  are equivalent, or > 0 if the substring is ordered after @a
+        -: 2313:       *  __s.  Determines the effective length rlen of the strings to
+        -: 2314:       *  compare as the smallest of the length of the substring and
+        -: 2315:       *  the length of a string constructed from @a __s.  The
+        -: 2316:       *  function then compares the two string by calling
+        -: 2317:       *  traits::compare(substring.data(),__s,rlen).  If the result of
+        -: 2318:       *  the comparison is nonzero returns it, otherwise the shorter
+        -: 2319:       *  one is ordered first.
+        -: 2320:      */
+        -: 2321:      int
+        -: 2322:      compare(size_type __pos, size_type __n1, const _CharT* __s) const;
+        -: 2323:
+        -: 2324:      /**
+        -: 2325:       *  @brief  Compare substring against a character %array.
+        -: 2326:       *  @param __pos  Index of first character of substring.
+        -: 2327:       *  @param __n1  Number of characters in substring.
+        -: 2328:       *  @param __s  character %array to compare against.
+        -: 2329:       *  @param __n2  Number of characters of s.
+        -: 2330:       *  @return  Integer < 0, 0, or > 0.
+        -: 2331:       *
+        -: 2332:       *  Form the substring of this string from the @a __n1
+        -: 2333:       *  characters starting at @a __pos.  Form a string from the
+        -: 2334:       *  first @a __n2 characters of @a __s.  Returns an integer < 0
+        -: 2335:       *  if this substring is ordered before the string from @a __s,
+        -: 2336:       *  0 if their values are equivalent, or > 0 if this substring
+        -: 2337:       *  is ordered after the string from @a __s.  Determines the
+        -: 2338:       *  effective length rlen of the strings to compare as the
+        -: 2339:       *  smallest of the length of the substring and @a __n2.  The
+        -: 2340:       *  function then compares the two strings by calling
+        -: 2341:       *  traits::compare(substring.data(),s,rlen).  If the result of
+        -: 2342:       *  the comparison is nonzero returns it, otherwise the shorter
+        -: 2343:       *  one is ordered first.
+        -: 2344:       *
+        -: 2345:       *  NB: s must have at least n2 characters, &apos;\\0&apos; has
+        -: 2346:       *  no special meaning.
+        -: 2347:      */
+        -: 2348:      int
+        -: 2349:      compare(size_type __pos, size_type __n1, const _CharT* __s,
+        -: 2350:	      size_type __n2) const;
+        -: 2351:  };
+        -: 2352:
+        -: 2353:  // operator+
+        -: 2354:  /**
+        -: 2355:   *  @brief  Concatenate two strings.
+        -: 2356:   *  @param __lhs  First string.
+        -: 2357:   *  @param __rhs  Last string.
+        -: 2358:   *  @return  New string with value of @a __lhs followed by @a __rhs.
+        -: 2359:   */
+        -: 2360:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2361:    basic_string<_CharT, _Traits, _Alloc>
+        -: 2362:    operator+(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2363:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2364:    {
+        -: 2365:      basic_string<_CharT, _Traits, _Alloc> __str(__lhs);
+        -: 2366:      __str.append(__rhs);
+        -: 2367:      return __str;
+        -: 2368:    }
+        -: 2369:
+        -: 2370:  /**
+        -: 2371:   *  @brief  Concatenate C string and string.
+        -: 2372:   *  @param __lhs  First string.
+        -: 2373:   *  @param __rhs  Last string.
+        -: 2374:   *  @return  New string with value of @a __lhs followed by @a __rhs.
+        -: 2375:   */
+        -: 2376:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2377:    basic_string<_CharT,_Traits,_Alloc>
+        -: 2378:    operator+(const _CharT* __lhs,
+        -: 2379:	      const basic_string<_CharT,_Traits,_Alloc>& __rhs);
+        -: 2380:
+        -: 2381:  /**
+        -: 2382:   *  @brief  Concatenate character and string.
+        -: 2383:   *  @param __lhs  First string.
+        -: 2384:   *  @param __rhs  Last string.
+        -: 2385:   *  @return  New string with @a __lhs followed by @a __rhs.
+        -: 2386:   */
+        -: 2387:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2388:    basic_string<_CharT,_Traits,_Alloc>
+        -: 2389:    operator+(_CharT __lhs, const basic_string<_CharT,_Traits,_Alloc>& __rhs);
+        -: 2390:
+        -: 2391:  /**
+        -: 2392:   *  @brief  Concatenate string and C string.
+        -: 2393:   *  @param __lhs  First string.
+        -: 2394:   *  @param __rhs  Last string.
+        -: 2395:   *  @return  New string with @a __lhs followed by @a __rhs.
+        -: 2396:   */
+        -: 2397:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2398:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2399:    operator+(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2400:	     const _CharT* __rhs)
+        -: 2401:    {
+        -: 2402:      basic_string<_CharT, _Traits, _Alloc> __str(__lhs);
+        -: 2403:      __str.append(__rhs);
+        -: 2404:      return __str;
+        -: 2405:    }
+        -: 2406:
+        -: 2407:  /**
+        -: 2408:   *  @brief  Concatenate string and character.
+        -: 2409:   *  @param __lhs  First string.
+        -: 2410:   *  @param __rhs  Last string.
+        -: 2411:   *  @return  New string with @a __lhs followed by @a __rhs.
+        -: 2412:   */
+        -: 2413:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2414:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2415:    operator+(const basic_string<_CharT, _Traits, _Alloc>& __lhs, _CharT __rhs)
+        -: 2416:    {
+        -: 2417:      typedef basic_string<_CharT, _Traits, _Alloc>	__string_type;
+        -: 2418:      typedef typename __string_type::size_type		__size_type;
+        -: 2419:      __string_type __str(__lhs);
+        -: 2420:      __str.append(__size_type(1), __rhs);
+        -: 2421:      return __str;
+        -: 2422:    }
+        -: 2423:
+        -: 2424:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 2425:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2426:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2427:    operator+(basic_string<_CharT, _Traits, _Alloc>&& __lhs,
+        -: 2428:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2429:    { return std::move(__lhs.append(__rhs)); }
+        -: 2430:
+        -: 2431:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2432:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2433:    operator+(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2434:	      basic_string<_CharT, _Traits, _Alloc>&& __rhs)
+        -: 2435:    { return std::move(__rhs.insert(0, __lhs)); }
+        -: 2436:
+        -: 2437:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2438:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2439:    operator+(basic_string<_CharT, _Traits, _Alloc>&& __lhs,
+        -: 2440:	      basic_string<_CharT, _Traits, _Alloc>&& __rhs)
+        -: 2441:    {
+        -: 2442:      const auto __size = __lhs.size() + __rhs.size();
+        -: 2443:      const bool __cond = (__size > __lhs.capacity()
+        -: 2444:			   && __size <= __rhs.capacity());
+        -: 2445:      return __cond ? std::move(__rhs.insert(0, __lhs))
+        -: 2446:	            : std::move(__lhs.append(__rhs));
+        -: 2447:    }
+        -: 2448:
+        -: 2449:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2450:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2451:    operator+(const _CharT* __lhs,
+        -: 2452:	      basic_string<_CharT, _Traits, _Alloc>&& __rhs)
+        -: 2453:    { return std::move(__rhs.insert(0, __lhs)); }
+        -: 2454:
+        -: 2455:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2456:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2457:    operator+(_CharT __lhs,
+        -: 2458:	      basic_string<_CharT, _Traits, _Alloc>&& __rhs)
+        -: 2459:    { return std::move(__rhs.insert(0, 1, __lhs)); }
+        -: 2460:
+        -: 2461:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2462:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2463:    operator+(basic_string<_CharT, _Traits, _Alloc>&& __lhs,
+        -: 2464:	      const _CharT* __rhs)
+        -: 2465:    { return std::move(__lhs.append(__rhs)); }
+        -: 2466:
+        -: 2467:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2468:    inline basic_string<_CharT, _Traits, _Alloc>
+        -: 2469:    operator+(basic_string<_CharT, _Traits, _Alloc>&& __lhs,
+        -: 2470:	      _CharT __rhs)
+        -: 2471:    { return std::move(__lhs.append(1, __rhs)); }
+        -: 2472:#endif
+        -: 2473:
+        -: 2474:  // operator ==
+        -: 2475:  /**
+        -: 2476:   *  @brief  Test equivalence of two strings.
+        -: 2477:   *  @param __lhs  First string.
+        -: 2478:   *  @param __rhs  Second string.
+        -: 2479:   *  @return  True if @a __lhs.compare(@a __rhs) == 0.  False otherwise.
+        -: 2480:   */
+        -: 2481:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2482:    inline bool
+        -: 2483:    operator==(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2484:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2485:    { return __lhs.compare(__rhs) == 0; }
+        -: 2486:
+        -: 2487:  template<typename _CharT>
+        -: 2488:    inline
+        -: 2489:    typename __gnu_cxx::__enable_if<__is_char<_CharT>::__value, bool>::__type
+        -: 2490:    operator==(const basic_string<_CharT>& __lhs,
+        -: 2491:	       const basic_string<_CharT>& __rhs)
+        -: 2492:    { return (__lhs.size() == __rhs.size()
+        -: 2493:	      && !std::char_traits<_CharT>::compare(__lhs.data(), __rhs.data(),
+        -: 2494:						    __lhs.size())); }
+        -: 2495:
+        -: 2496:  /**
+        -: 2497:   *  @brief  Test equivalence of C string and string.
+        -: 2498:   *  @param __lhs  C string.
+        -: 2499:   *  @param __rhs  String.
+        -: 2500:   *  @return  True if @a __rhs.compare(@a __lhs) == 0.  False otherwise.
+        -: 2501:   */
+        -: 2502:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2503:    inline bool
+        -: 2504:    operator==(const _CharT* __lhs,
+        -: 2505:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2506:    { return __rhs.compare(__lhs) == 0; }
+        -: 2507:
+        -: 2508:  /**
+        -: 2509:   *  @brief  Test equivalence of string and C string.
+        -: 2510:   *  @param __lhs  String.
+        -: 2511:   *  @param __rhs  C string.
+        -: 2512:   *  @return  True if @a __lhs.compare(@a __rhs) == 0.  False otherwise.
+        -: 2513:   */
+        -: 2514:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2515:    inline bool
+        -: 2516:    operator==(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2517:	       const _CharT* __rhs)
+        -: 2518:    { return __lhs.compare(__rhs) == 0; }
+        -: 2519:
+        -: 2520:  // operator !=
+        -: 2521:  /**
+        -: 2522:   *  @brief  Test difference of two strings.
+        -: 2523:   *  @param __lhs  First string.
+        -: 2524:   *  @param __rhs  Second string.
+        -: 2525:   *  @return  True if @a __lhs.compare(@a __rhs) != 0.  False otherwise.
+        -: 2526:   */
+        -: 2527:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2528:    inline bool
+        -: 2529:    operator!=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2530:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2531:    { return !(__lhs == __rhs); }
+        -: 2532:
+        -: 2533:  /**
+        -: 2534:   *  @brief  Test difference of C string and string.
+        -: 2535:   *  @param __lhs  C string.
+        -: 2536:   *  @param __rhs  String.
+        -: 2537:   *  @return  True if @a __rhs.compare(@a __lhs) != 0.  False otherwise.
+        -: 2538:   */
+        -: 2539:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2540:    inline bool
+        -: 2541:    operator!=(const _CharT* __lhs,
+        -: 2542:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2543:    { return !(__lhs == __rhs); }
+        -: 2544:
+        -: 2545:  /**
+        -: 2546:   *  @brief  Test difference of string and C string.
+        -: 2547:   *  @param __lhs  String.
+        -: 2548:   *  @param __rhs  C string.
+        -: 2549:   *  @return  True if @a __lhs.compare(@a __rhs) != 0.  False otherwise.
+        -: 2550:   */
+        -: 2551:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2552:    inline bool
+        -: 2553:    operator!=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2554:	       const _CharT* __rhs)
+        -: 2555:    { return !(__lhs == __rhs); }
+        -: 2556:
+        -: 2557:  // operator <
+        -: 2558:  /**
+        -: 2559:   *  @brief  Test if string precedes string.
+        -: 2560:   *  @param __lhs  First string.
+        -: 2561:   *  @param __rhs  Second string.
+        -: 2562:   *  @return  True if @a __lhs precedes @a __rhs.  False otherwise.
+        -: 2563:   */
+        -: 2564:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2565:    inline bool
+        -: 2566:    operator<(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2567:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2568:    { return __lhs.compare(__rhs) < 0; }
+        -: 2569:
+        -: 2570:  /**
+        -: 2571:   *  @brief  Test if string precedes C string.
+        -: 2572:   *  @param __lhs  String.
+        -: 2573:   *  @param __rhs  C string.
+        -: 2574:   *  @return  True if @a __lhs precedes @a __rhs.  False otherwise.
+        -: 2575:   */
+        -: 2576:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2577:    inline bool
+        -: 2578:    operator<(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2579:	      const _CharT* __rhs)
+        -: 2580:    { return __lhs.compare(__rhs) < 0; }
+        -: 2581:
+        -: 2582:  /**
+        -: 2583:   *  @brief  Test if C string precedes string.
+        -: 2584:   *  @param __lhs  C string.
+        -: 2585:   *  @param __rhs  String.
+        -: 2586:   *  @return  True if @a __lhs precedes @a __rhs.  False otherwise.
+        -: 2587:   */
+        -: 2588:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2589:    inline bool
+        -: 2590:    operator<(const _CharT* __lhs,
+        -: 2591:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2592:    { return __rhs.compare(__lhs) > 0; }
+        -: 2593:
+        -: 2594:  // operator >
+        -: 2595:  /**
+        -: 2596:   *  @brief  Test if string follows string.
+        -: 2597:   *  @param __lhs  First string.
+        -: 2598:   *  @param __rhs  Second string.
+        -: 2599:   *  @return  True if @a __lhs follows @a __rhs.  False otherwise.
+        -: 2600:   */
+        -: 2601:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2602:    inline bool
+        -: 2603:    operator>(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2604:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2605:    { return __lhs.compare(__rhs) > 0; }
+        -: 2606:
+        -: 2607:  /**
+        -: 2608:   *  @brief  Test if string follows C string.
+        -: 2609:   *  @param __lhs  String.
+        -: 2610:   *  @param __rhs  C string.
+        -: 2611:   *  @return  True if @a __lhs follows @a __rhs.  False otherwise.
+        -: 2612:   */
+        -: 2613:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2614:    inline bool
+        -: 2615:    operator>(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2616:	      const _CharT* __rhs)
+        -: 2617:    { return __lhs.compare(__rhs) > 0; }
+        -: 2618:
+        -: 2619:  /**
+        -: 2620:   *  @brief  Test if C string follows string.
+        -: 2621:   *  @param __lhs  C string.
+        -: 2622:   *  @param __rhs  String.
+        -: 2623:   *  @return  True if @a __lhs follows @a __rhs.  False otherwise.
+        -: 2624:   */
+        -: 2625:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2626:    inline bool
+        -: 2627:    operator>(const _CharT* __lhs,
+        -: 2628:	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2629:    { return __rhs.compare(__lhs) < 0; }
+        -: 2630:
+        -: 2631:  // operator <=
+        -: 2632:  /**
+        -: 2633:   *  @brief  Test if string doesn't follow string.
+        -: 2634:   *  @param __lhs  First string.
+        -: 2635:   *  @param __rhs  Second string.
+        -: 2636:   *  @return  True if @a __lhs doesn't follow @a __rhs.  False otherwise.
+        -: 2637:   */
+        -: 2638:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2639:    inline bool
+        -: 2640:    operator<=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2641:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2642:    { return __lhs.compare(__rhs) <= 0; }
+        -: 2643:
+        -: 2644:  /**
+        -: 2645:   *  @brief  Test if string doesn't follow C string.
+        -: 2646:   *  @param __lhs  String.
+        -: 2647:   *  @param __rhs  C string.
+        -: 2648:   *  @return  True if @a __lhs doesn't follow @a __rhs.  False otherwise.
+        -: 2649:   */
+        -: 2650:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2651:    inline bool
+        -: 2652:    operator<=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2653:	       const _CharT* __rhs)
+        -: 2654:    { return __lhs.compare(__rhs) <= 0; }
+        -: 2655:
+        -: 2656:  /**
+        -: 2657:   *  @brief  Test if C string doesn't follow string.
+        -: 2658:   *  @param __lhs  C string.
+        -: 2659:   *  @param __rhs  String.
+        -: 2660:   *  @return  True if @a __lhs doesn't follow @a __rhs.  False otherwise.
+        -: 2661:   */
+        -: 2662:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2663:    inline bool
+        -: 2664:    operator<=(const _CharT* __lhs,
+        -: 2665:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2666:    { return __rhs.compare(__lhs) >= 0; }
+        -: 2667:
+        -: 2668:  // operator >=
+        -: 2669:  /**
+        -: 2670:   *  @brief  Test if string doesn't precede string.
+        -: 2671:   *  @param __lhs  First string.
+        -: 2672:   *  @param __rhs  Second string.
+        -: 2673:   *  @return  True if @a __lhs doesn't precede @a __rhs.  False otherwise.
+        -: 2674:   */
+        -: 2675:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2676:    inline bool
+        -: 2677:    operator>=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2678:	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2679:    { return __lhs.compare(__rhs) >= 0; }
+        -: 2680:
+        -: 2681:  /**
+        -: 2682:   *  @brief  Test if string doesn't precede C string.
+        -: 2683:   *  @param __lhs  String.
+        -: 2684:   *  @param __rhs  C string.
+        -: 2685:   *  @return  True if @a __lhs doesn't precede @a __rhs.  False otherwise.
+        -: 2686:   */
+        -: 2687:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2688:    inline bool
+        -: 2689:    operator>=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2690:	       const _CharT* __rhs)
+        -: 2691:    { return __lhs.compare(__rhs) >= 0; }
+        -: 2692:
+        -: 2693:  /**
+        -: 2694:   *  @brief  Test if C string doesn't precede string.
+        -: 2695:   *  @param __lhs  C string.
+        -: 2696:   *  @param __rhs  String.
+        -: 2697:   *  @return  True if @a __lhs doesn't precede @a __rhs.  False otherwise.
+        -: 2698:   */
+        -: 2699:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2700:    inline bool
+        -: 2701:    operator>=(const _CharT* __lhs,
+        -: 2702:	     const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2703:    { return __rhs.compare(__lhs) <= 0; }
+        -: 2704:
+        -: 2705:  /**
+        -: 2706:   *  @brief  Swap contents of two strings.
+        -: 2707:   *  @param __lhs  First string.
+        -: 2708:   *  @param __rhs  Second string.
+        -: 2709:   *
+        -: 2710:   *  Exchanges the contents of @a __lhs and @a __rhs in constant time.
+        -: 2711:   */
+        -: 2712:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2713:    inline void
+        -: 2714:    swap(basic_string<_CharT, _Traits, _Alloc>& __lhs,
+        -: 2715:	 basic_string<_CharT, _Traits, _Alloc>& __rhs)
+        -: 2716:    { __lhs.swap(__rhs); }
+        -: 2717:
+        -: 2718:  /**
+        -: 2719:   *  @brief  Read stream into a string.
+        -: 2720:   *  @param __is  Input stream.
+        -: 2721:   *  @param __str  Buffer to store into.
+        -: 2722:   *  @return  Reference to the input stream.
+        -: 2723:   *
+        -: 2724:   *  Stores characters from @a __is into @a __str until whitespace is
+        -: 2725:   *  found, the end of the stream is encountered, or str.max_size()
+        -: 2726:   *  is reached.  If is.width() is non-zero, that is the limit on the
+        -: 2727:   *  number of characters stored into @a __str.  Any previous
+        -: 2728:   *  contents of @a __str are erased.
+        -: 2729:   */
+        -: 2730:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2731:    basic_istream<_CharT, _Traits>&
+        -: 2732:    operator>>(basic_istream<_CharT, _Traits>& __is,
+        -: 2733:	       basic_string<_CharT, _Traits, _Alloc>& __str);
+        -: 2734:
+        -: 2735:  template<>
+        -: 2736:    basic_istream<char>&
+        -: 2737:    operator>>(basic_istream<char>& __is, basic_string<char>& __str);
+        -: 2738:
+        -: 2739:  /**
+        -: 2740:   *  @brief  Write string to a stream.
+        -: 2741:   *  @param __os  Output stream.
+        -: 2742:   *  @param __str  String to write out.
+        -: 2743:   *  @return  Reference to the output stream.
+        -: 2744:   *
+        -: 2745:   *  Output characters of @a __str into os following the same rules as for
+        -: 2746:   *  writing a C string.
+        -: 2747:   */
+        -: 2748:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2749:    inline basic_ostream<_CharT, _Traits>&
+        -: 2750:    operator<<(basic_ostream<_CharT, _Traits>& __os,
+        -: 2751:	       const basic_string<_CharT, _Traits, _Alloc>& __str)
+        -: 2752:    {
+        -: 2753:      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+        -: 2754:      // 586. string inserter not a formatted function
+        -: 2755:      return __ostream_insert(__os, __str.data(), __str.size());
+        -: 2756:    }
+        -: 2757:
+        -: 2758:  /**
+        -: 2759:   *  @brief  Read a line from stream into a string.
+        -: 2760:   *  @param __is  Input stream.
+        -: 2761:   *  @param __str  Buffer to store into.
+        -: 2762:   *  @param __delim  Character marking end of line.
+        -: 2763:   *  @return  Reference to the input stream.
+        -: 2764:   *
+        -: 2765:   *  Stores characters from @a __is into @a __str until @a __delim is
+        -: 2766:   *  found, the end of the stream is encountered, or str.max_size()
+        -: 2767:   *  is reached.  If is.width() is non-zero, that is the limit on the
+        -: 2768:   *  number of characters stored into @a __str.  Any previous
+        -: 2769:   *  contents of @a __str are erased.  If @a __delim was encountered,
+        -: 2770:   *  it is extracted but not stored into @a __str.
+        -: 2771:   */
+        -: 2772:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2773:    basic_istream<_CharT, _Traits>&
+        -: 2774:    getline(basic_istream<_CharT, _Traits>& __is,
+        -: 2775:	    basic_string<_CharT, _Traits, _Alloc>& __str, _CharT __delim);
+        -: 2776:
+        -: 2777:  /**
+        -: 2778:   *  @brief  Read a line from stream into a string.
+        -: 2779:   *  @param __is  Input stream.
+        -: 2780:   *  @param __str  Buffer to store into.
+        -: 2781:   *  @return  Reference to the input stream.
+        -: 2782:   *
+        -: 2783:   *  Stores characters from is into @a __str until &apos;\n&apos; is
+        -: 2784:   *  found, the end of the stream is encountered, or str.max_size()
+        -: 2785:   *  is reached.  If __is.width() is non-zero, that is the limit on
+        -: 2786:   *  the number of characters stored into @a __str.  Any previous
+        -: 2787:   *  contents of @a __str are erased.  If end of line was
+        -: 2788:   *  encountered, it is extracted but not stored into @a __str.
+        -: 2789:   */
+        -: 2790:  template<typename _CharT, typename _Traits, typename _Alloc>
+        -: 2791:    inline basic_istream<_CharT, _Traits>&
+        -: 2792:    getline(basic_istream<_CharT, _Traits>& __is,
+        -: 2793:	    basic_string<_CharT, _Traits, _Alloc>& __str)
+        -: 2794:    { return getline(__is, __str, __is.widen('\n')); }
+        -: 2795:
+        -: 2796:  template<>
+        -: 2797:    basic_istream<char>&
+        -: 2798:    getline(basic_istream<char>& __in, basic_string<char>& __str,
+        -: 2799:	    char __delim);
+        -: 2800:
+        -: 2801:#ifdef _GLIBCXX_USE_WCHAR_T
+        -: 2802:  template<>
+        -: 2803:    basic_istream<wchar_t>&
+        -: 2804:    getline(basic_istream<wchar_t>& __in, basic_string<wchar_t>& __str,
+        -: 2805:	    wchar_t __delim);
+        -: 2806:#endif  
+        -: 2807:
+        -: 2808:_GLIBCXX_END_NAMESPACE_VERSION
+        -: 2809:} // namespace
+        -: 2810:
+        -: 2811:#if (defined(__GXX_EXPERIMENTAL_CXX0X__) && defined(_GLIBCXX_USE_C99) \
+        -: 2812:     && !defined(_GLIBCXX_HAVE_BROKEN_VSWPRINTF))
+        -: 2813:
+        -: 2814:#include <ext/string_conversions.h>
+        -: 2815:
+        -: 2816:namespace std _GLIBCXX_VISIBILITY(default)
+        -: 2817:{
+        -: 2818:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -: 2819:
+        -: 2820:  // 21.4 Numeric Conversions [string.conversions].
+        -: 2821:  inline int
+        -: 2822:  stoi(const string& __str, size_t* __idx = 0, int __base = 10)
+        -: 2823:  { return __gnu_cxx::__stoa<long, int>(&std::strtol, "stoi", __str.c_str(),
+        -: 2824:					__idx, __base); }
+        -: 2825:
+        -: 2826:  inline long
+        -: 2827:  stol(const string& __str, size_t* __idx = 0, int __base = 10)
+        -: 2828:  { return __gnu_cxx::__stoa(&std::strtol, "stol", __str.c_str(),
+        -: 2829:			     __idx, __base); }
+        -: 2830:
+        -: 2831:  inline unsigned long
+        -: 2832:  stoul(const string& __str, size_t* __idx = 0, int __base = 10)
+        -: 2833:  { return __gnu_cxx::__stoa(&std::strtoul, "stoul", __str.c_str(),
+        -: 2834:			     __idx, __base); }
+        -: 2835:
+        -: 2836:  inline long long
+        -: 2837:  stoll(const string& __str, size_t* __idx = 0, int __base = 10)
+        -: 2838:  { return __gnu_cxx::__stoa(&std::strtoll, "stoll", __str.c_str(),
+        -: 2839:			     __idx, __base); }
+        -: 2840:
+        -: 2841:  inline unsigned long long
+        -: 2842:  stoull(const string& __str, size_t* __idx = 0, int __base = 10)
+        -: 2843:  { return __gnu_cxx::__stoa(&std::strtoull, "stoull", __str.c_str(),
+        -: 2844:			     __idx, __base); }
+        -: 2845:
+        -: 2846:  // NB: strtof vs strtod.
+        -: 2847:  inline float
+        -: 2848:  stof(const string& __str, size_t* __idx = 0)
+        -: 2849:  { return __gnu_cxx::__stoa(&std::strtof, "stof", __str.c_str(), __idx); }
+        -: 2850:
+        -: 2851:  inline double
+        -: 2852:  stod(const string& __str, size_t* __idx = 0)
+        -: 2853:  { return __gnu_cxx::__stoa(&std::strtod, "stod", __str.c_str(), __idx); }
+        -: 2854:
+        -: 2855:  inline long double
+        -: 2856:  stold(const string& __str, size_t* __idx = 0)
+        -: 2857:  { return __gnu_cxx::__stoa(&std::strtold, "stold", __str.c_str(), __idx); }
+        -: 2858:
+        -: 2859:  // NB: (v)snprintf vs sprintf.
+        -: 2860:
+        -: 2861:  // DR 1261.
+        -: 2862:  inline string
+        -: 2863:  to_string(int __val)
+        -: 2864:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, 4 * sizeof(int),
+        -: 2865:					   "%d", __val); }
+        -: 2866:
+        -: 2867:  inline string
+        -: 2868:  to_string(unsigned __val)
+        -: 2869:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
+        -: 2870:					   4 * sizeof(unsigned),
+        -: 2871:					   "%u", __val); }
+        -: 2872:
+        -: 2873:  inline string
+        -: 2874:  to_string(long __val)
+        -: 2875:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, 4 * sizeof(long),
+        -: 2876:					   "%ld", __val); }
+        -: 2877:
+        -: 2878:  inline string
+        -: 2879:  to_string(unsigned long __val)
+        -: 2880:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
+        -: 2881:					   4 * sizeof(unsigned long),
+        -: 2882:					   "%lu", __val); }
+        -: 2883:
+        -: 2884:  inline string
+        -: 2885:  to_string(long long __val)
+        -: 2886:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
+        -: 2887:					   4 * sizeof(long long),
+        -: 2888:					   "%lld", __val); }
+        -: 2889:
+        -: 2890:  inline string
+        -: 2891:  to_string(unsigned long long __val)
+        -: 2892:  { return __gnu_cxx::__to_xstring<string>(&std::vsnprintf,
+        -: 2893:					   4 * sizeof(unsigned long long),
+        -: 2894:					   "%llu", __val); }
+        -: 2895:
+        -: 2896:  inline string
+        -: 2897:  to_string(float __val)
+        -: 2898:  {
+        -: 2899:    const int __n = 
+        -: 2900:      __gnu_cxx::__numeric_traits<float>::__max_exponent10 + 20;
+        -: 2901:    return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
+        -: 2902:					   "%f", __val);
+        -: 2903:  }
+        -: 2904:
+        -: 2905:  inline string
+        -: 2906:  to_string(double __val)
+        -: 2907:  {
+        -: 2908:    const int __n = 
+        -: 2909:      __gnu_cxx::__numeric_traits<double>::__max_exponent10 + 20;
+        -: 2910:    return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
+        -: 2911:					   "%f", __val);
+        -: 2912:  }
+        -: 2913:
+        -: 2914:  inline string
+        -: 2915:  to_string(long double __val)
+        -: 2916:  {
+        -: 2917:    const int __n = 
+        -: 2918:      __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
+        -: 2919:    return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
+        -: 2920:					   "%Lf", __val);
+        -: 2921:  }
+        -: 2922:
+        -: 2923:#ifdef _GLIBCXX_USE_WCHAR_T
+        -: 2924:  inline int 
+        -: 2925:  stoi(const wstring& __str, size_t* __idx = 0, int __base = 10)
+        -: 2926:  { return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(),
+        -: 2927:					__idx, __base); }
+        -: 2928:
+        -: 2929:  inline long 
+        -: 2930:  stol(const wstring& __str, size_t* __idx = 0, int __base = 10)
+        -: 2931:  { return __gnu_cxx::__stoa(&std::wcstol, "stol", __str.c_str(),
+        -: 2932:			     __idx, __base); }
+        -: 2933:
+        -: 2934:  inline unsigned long
+        -: 2935:  stoul(const wstring& __str, size_t* __idx = 0, int __base = 10)
+        -: 2936:  { return __gnu_cxx::__stoa(&std::wcstoul, "stoul", __str.c_str(),
+        -: 2937:			     __idx, __base); }
+        -: 2938:
+        -: 2939:  inline long long
+        -: 2940:  stoll(const wstring& __str, size_t* __idx = 0, int __base = 10)
+        -: 2941:  { return __gnu_cxx::__stoa(&std::wcstoll, "stoll", __str.c_str(),
+        -: 2942:			     __idx, __base); }
+        -: 2943:
+        -: 2944:  inline unsigned long long
+        -: 2945:  stoull(const wstring& __str, size_t* __idx = 0, int __base = 10)
+        -: 2946:  { return __gnu_cxx::__stoa(&std::wcstoull, "stoull", __str.c_str(),
+        -: 2947:			     __idx, __base); }
+        -: 2948:
+        -: 2949:  // NB: wcstof vs wcstod.
+        -: 2950:  inline float
+        -: 2951:  stof(const wstring& __str, size_t* __idx = 0)
+        -: 2952:  { return __gnu_cxx::__stoa(&std::wcstof, "stof", __str.c_str(), __idx); }
+        -: 2953:
+        -: 2954:  inline double
+        -: 2955:  stod(const wstring& __str, size_t* __idx = 0)
+        -: 2956:  { return __gnu_cxx::__stoa(&std::wcstod, "stod", __str.c_str(), __idx); }
+        -: 2957:
+        -: 2958:  inline long double
+        -: 2959:  stold(const wstring& __str, size_t* __idx = 0)
+        -: 2960:  { return __gnu_cxx::__stoa(&std::wcstold, "stold", __str.c_str(), __idx); }
+        -: 2961:
+        -: 2962:  // DR 1261.
+        -: 2963:  inline wstring
+        -: 2964:  to_wstring(int __val)
+        -: 2965:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, 4 * sizeof(int),
+        -: 2966:					    L"%d", __val); }
+        -: 2967:
+        -: 2968:  inline wstring
+        -: 2969:  to_wstring(unsigned __val)
+        -: 2970:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
+        -: 2971:					    4 * sizeof(unsigned),
+        -: 2972:					    L"%u", __val); }
+        -: 2973:
+        -: 2974:  inline wstring
+        -: 2975:  to_wstring(long __val)
+        -: 2976:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, 4 * sizeof(long),
+        -: 2977:					    L"%ld", __val); }
+        -: 2978:
+        -: 2979:  inline wstring
+        -: 2980:  to_wstring(unsigned long __val)
+        -: 2981:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
+        -: 2982:					    4 * sizeof(unsigned long),
+        -: 2983:					    L"%lu", __val); }
+        -: 2984:
+        -: 2985:  inline wstring
+        -: 2986:  to_wstring(long long __val)
+        -: 2987:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
+        -: 2988:					    4 * sizeof(long long),
+        -: 2989:					    L"%lld", __val); }
+        -: 2990:
+        -: 2991:  inline wstring
+        -: 2992:  to_wstring(unsigned long long __val)
+        -: 2993:  { return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf,
+        -: 2994:					    4 * sizeof(unsigned long long),
+        -: 2995:					    L"%llu", __val); }
+        -: 2996:
+        -: 2997:  inline wstring
+        -: 2998:  to_wstring(float __val)
+        -: 2999:  {
+        -: 3000:    const int __n =
+        -: 3001:      __gnu_cxx::__numeric_traits<float>::__max_exponent10 + 20;
+        -: 3002:    return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, __n,
+        -: 3003:					    L"%f", __val);
+        -: 3004:  }
+        -: 3005:
+        -: 3006:  inline wstring
+        -: 3007:  to_wstring(double __val)
+        -: 3008:  {
+        -: 3009:    const int __n =
+        -: 3010:      __gnu_cxx::__numeric_traits<double>::__max_exponent10 + 20;
+        -: 3011:    return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, __n,
+        -: 3012:					    L"%f", __val);
+        -: 3013:  }
+        -: 3014:
+        -: 3015:  inline wstring
+        -: 3016:  to_wstring(long double __val)
+        -: 3017:  {
+        -: 3018:    const int __n =
+        -: 3019:      __gnu_cxx::__numeric_traits<long double>::__max_exponent10 + 20;
+        -: 3020:    return __gnu_cxx::__to_xstring<wstring>(&std::vswprintf, __n,
+        -: 3021:					    L"%Lf", __val);
+        -: 3022:  }
+        -: 3023:#endif
+        -: 3024:
+        -: 3025:_GLIBCXX_END_NAMESPACE_VERSION
+        -: 3026:} // namespace
+        -: 3027:
+        -: 3028:#endif /* __GXX_EXPERIMENTAL_CXX0X__ && _GLIBCXX_USE_C99 ... */
+        -: 3029:
+        -: 3030:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -: 3031:
+        -: 3032:#include <bits/functional_hash.h>
+        -: 3033:
+        -: 3034:namespace std _GLIBCXX_VISIBILITY(default)
+        -: 3035:{
+        -: 3036:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -: 3037:
+        -: 3038:  // DR 1182.
+        -: 3039:
+        -: 3040:#ifndef _GLIBCXX_COMPATIBILITY_CXX0X
+        -: 3041:  /// std::hash specialization for string.
+        -: 3042:  template<>
+        -: 3043:    struct hash<string>
+        -: 3044:    : public __hash_base<size_t, string>
+        -: 3045:    {
+        -: 3046:      size_t
+        -: 3047:      operator()(const string& __s) const noexcept
+        -: 3048:      { return std::_Hash_impl::hash(__s.data(), __s.length()); }
+        -: 3049:    };
+        -: 3050:
+        -: 3051:#ifdef _GLIBCXX_USE_WCHAR_T
+        -: 3052:  /// std::hash specialization for wstring.
+        -: 3053:  template<>
+        -: 3054:    struct hash<wstring>
+        -: 3055:    : public __hash_base<size_t, wstring>
+        -: 3056:    {
+        -: 3057:      size_t
+        -: 3058:      operator()(const wstring& __s) const noexcept
+        -: 3059:      { return std::_Hash_impl::hash(__s.data(),
+        -: 3060:                                     __s.length() * sizeof(wchar_t)); }
+        -: 3061:    };
+        -: 3062:#endif
+        -: 3063:#endif /* _GLIBCXX_COMPATIBILITY_CXX0X */
+        -: 3064:
+        -: 3065:#ifdef _GLIBCXX_USE_C99_STDINT_TR1
+        -: 3066:  /// std::hash specialization for u16string.
+        -: 3067:  template<>
+        -: 3068:    struct hash<u16string>
+        -: 3069:    : public __hash_base<size_t, u16string>
+        -: 3070:    {
+        -: 3071:      size_t
+        -: 3072:      operator()(const u16string& __s) const noexcept
+        -: 3073:      { return std::_Hash_impl::hash(__s.data(),
+        -: 3074:                                     __s.length() * sizeof(char16_t)); }
+        -: 3075:    };
+        -: 3076:
+        -: 3077:  /// std::hash specialization for u32string.
+        -: 3078:  template<>
+        -: 3079:    struct hash<u32string>
+        -: 3080:    : public __hash_base<size_t, u32string>
+        -: 3081:    {
+        -: 3082:      size_t
+        -: 3083:      operator()(const u32string& __s) const noexcept
+        -: 3084:      { return std::_Hash_impl::hash(__s.data(),
+        -: 3085:                                     __s.length() * sizeof(char32_t)); }
+        -: 3086:    };
+        -: 3087:#endif
+        -: 3088:
+        -: 3089:_GLIBCXX_END_NAMESPACE_VERSION
+        -: 3090:} // namespace
+        -: 3091:
+        -: 3092:#endif /* __GXX_EXPERIMENTAL_CXX0X__ */
+        -: 3093:
+        -: 3094:#endif /* _BASIC_STRING_H */

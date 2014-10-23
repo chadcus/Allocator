@@ -1,0 +1,164 @@
+        -:    0:Source:/usr/include/c++/4.7/exception
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// Exception Handling support header for -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+        -:    4:// 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+        -:    5:// Free Software Foundation
+        -:    6://
+        -:    7:// This file is part of GCC.
+        -:    8://
+        -:    9:// GCC is free software; you can redistribute it and/or modify
+        -:   10:// it under the terms of the GNU General Public License as published by
+        -:   11:// the Free Software Foundation; either version 3, or (at your option)
+        -:   12:// any later version.
+        -:   13://
+        -:   14:// GCC is distributed in the hope that it will be useful,
+        -:   15:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   16:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   17:// GNU General Public License for more details.
+        -:   18://
+        -:   19:// Under Section 7 of GPL version 3, you are granted additional
+        -:   20:// permissions described in the GCC Runtime Library Exception, version
+        -:   21:// 3.1, as published by the Free Software Foundation.
+        -:   22:
+        -:   23:// You should have received a copy of the GNU General Public License and
+        -:   24:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   25:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   26:// <http://www.gnu.org/licenses/>.
+        -:   27:
+        -:   28:/** @file exception
+        -:   29: *  This is a Standard C++ Library header.
+        -:   30: */
+        -:   31:
+        -:   32:#ifndef __EXCEPTION__
+        -:   33:#define __EXCEPTION__
+        -:   34:
+        -:   35:#pragma GCC system_header
+        -:   36:
+        -:   37:#pragma GCC visibility push(default)
+        -:   38:
+        -:   39:#include <bits/c++config.h>
+        -:   40:#include <bits/atomic_lockfree_defines.h>
+        -:   41:
+        -:   42:extern "C++" {
+        -:   43:
+        -:   44:namespace std
+        -:   45:{
+        -:   46:  /**
+        -:   47:   * @defgroup exceptions Exceptions
+        -:   48:   * @ingroup diagnostics
+        -:   49:   *
+        -:   50:   * Classes and functions for reporting errors via exception classes.
+        -:   51:   * @{
+        -:   52:   */
+        -:   53:
+        -:   54:  /**
+        -:   55:   *  @brief Base class for all library exceptions.
+        -:   56:   *
+        -:   57:   *  This is the base class for all exceptions thrown by the standard
+        -:   58:   *  library, and by certain language expressions.  You are free to derive
+        -:   59:   *  your own %exception classes, or use a different hierarchy, or to
+        -:   60:   *  throw non-class data (e.g., fundamental types).
+        -:   61:   */
+        -:   62:  class exception
+        -:   63:  {
+        -:   64:  public:
+function _ZNSt9exceptionC2Ev called 0 returned 0% blocks executed 0%
+    #####:   65:    exception() _GLIBCXX_USE_NOEXCEPT { }
+        -:   66:    virtual ~exception() _GLIBCXX_USE_NOEXCEPT;
+        -:   67:
+        -:   68:    /** Returns a C-style character string describing the general cause
+        -:   69:     *  of the current error.  */
+        -:   70:    virtual const char* what() const _GLIBCXX_USE_NOEXCEPT;
+        -:   71:  };
+        -:   72:
+        -:   73:  /** If an %exception is thrown which is not listed in a function's
+        -:   74:   *  %exception specification, one of these may be thrown.  */
+        -:   75:  class bad_exception : public exception
+        -:   76:  {
+        -:   77:  public:
+        -:   78:    bad_exception() _GLIBCXX_USE_NOEXCEPT { }
+        -:   79:
+        -:   80:    // This declaration is not useless:
+        -:   81:    // http://gcc.gnu.org/onlinedocs/gcc-3.0.2/gcc_6.html#SEC118
+        -:   82:    virtual ~bad_exception() _GLIBCXX_USE_NOEXCEPT;
+        -:   83:
+        -:   84:    // See comment in eh_exception.cc.
+        -:   85:    virtual const char* what() const _GLIBCXX_USE_NOEXCEPT;
+        -:   86:  };
+        -:   87:
+        -:   88:  /// If you write a replacement %terminate handler, it must be of this type.
+        -:   89:  typedef void (*terminate_handler) ();
+        -:   90:
+        -:   91:  /// If you write a replacement %unexpected handler, it must be of this type.
+        -:   92:  typedef void (*unexpected_handler) ();
+        -:   93:
+        -:   94:  /// Takes a new handler function as an argument, returns the old function.
+        -:   95:  terminate_handler set_terminate(terminate_handler) _GLIBCXX_USE_NOEXCEPT;
+        -:   96:
+        -:   97:  /** The runtime will call this function if %exception handling must be
+        -:   98:   *  abandoned for any reason.  It can also be called by the user.  */
+        -:   99:  void terminate() _GLIBCXX_USE_NOEXCEPT __attribute__ ((__noreturn__));
+        -:  100:
+        -:  101:  /// Takes a new handler function as an argument, returns the old function.
+        -:  102:  unexpected_handler set_unexpected(unexpected_handler) _GLIBCXX_USE_NOEXCEPT;
+        -:  103:
+        -:  104:  /** The runtime will call this function if an %exception is thrown which
+        -:  105:   *  violates the function's %exception specification.  */
+        -:  106:  void unexpected() __attribute__ ((__noreturn__));
+        -:  107:
+        -:  108:  /** [18.6.4]/1:  'Returns true after completing evaluation of a
+        -:  109:   *  throw-expression until either completing initialization of the
+        -:  110:   *  exception-declaration in the matching handler or entering @c unexpected()
+        -:  111:   *  due to the throw; or after entering @c terminate() for any reason
+        -:  112:   *  other than an explicit call to @c terminate().  [Note: This includes
+        -:  113:   *  stack unwinding [15.2].  end note]'
+        -:  114:   *
+        -:  115:   *  2: 'When @c uncaught_exception() is true, throwing an
+        -:  116:   *  %exception can result in a call of @c terminate()
+        -:  117:   *  (15.5.1).'
+        -:  118:   */
+        -:  119:  bool uncaught_exception() _GLIBCXX_USE_NOEXCEPT __attribute__ ((__pure__));
+        -:  120:
+        -:  121:  // @} group exceptions
+        -:  122:} // namespace std
+        -:  123:
+        -:  124:namespace __gnu_cxx
+        -:  125:{
+        -:  126:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:  127:
+        -:  128:  /**
+        -:  129:   *  @brief A replacement for the standard terminate_handler which
+        -:  130:   *  prints more information about the terminating exception (if any)
+        -:  131:   *  on stderr.
+        -:  132:   *
+        -:  133:   *  @ingroup exceptions
+        -:  134:   *
+        -:  135:   *  Call
+        -:  136:   *   @code
+        -:  137:   *     std::set_terminate(__gnu_cxx::__verbose_terminate_handler)
+        -:  138:   *   @endcode
+        -:  139:   *  to use.  For more info, see
+        -:  140:   *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/bk01pt02ch06s02.html
+        -:  141:   *
+        -:  142:   *  In 3.4 and later, this is on by default.
+        -:  143:   */
+        -:  144:  void __verbose_terminate_handler();
+        -:  145:
+        -:  146:_GLIBCXX_END_NAMESPACE_VERSION
+        -:  147:} // namespace
+        -:  148:
+        -:  149:} // extern "C++"
+        -:  150:
+        -:  151:#pragma GCC visibility pop
+        -:  152:
+        -:  153:#if defined(__GXX_EXPERIMENTAL_CXX0X__) && (ATOMIC_INT_LOCK_FREE > 1)
+        -:  154:#include <bits/exception_ptr.h>
+        -:  155:#include <bits/nested_exception.h>
+        -:  156:#endif
+        -:  157:
+        -:  158:#endif

@@ -1,0 +1,213 @@
+        -:    0:Source:/usr/include/c++/4.7/bits/stl_iterator_base_funcs.h
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// Functions used by iterators -*- C++ -*-
+        -:    2:
+        -:    3:// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+        -:    4:// Free Software Foundation, Inc.
+        -:    5://
+        -:    6:// This file is part of the GNU ISO C++ Library.  This library is free
+        -:    7:// software; you can redistribute it and/or modify it under the
+        -:    8:// terms of the GNU General Public License as published by the
+        -:    9:// Free Software Foundation; either version 3, or (at your option)
+        -:   10:// any later version.
+        -:   11:
+        -:   12:// This library is distributed in the hope that it will be useful,
+        -:   13:// but WITHOUT ANY WARRANTY; without even the implied warranty of
+        -:   14:// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        -:   15:// GNU General Public License for more details.
+        -:   16:
+        -:   17:// Under Section 7 of GPL version 3, you are granted additional
+        -:   18:// permissions described in the GCC Runtime Library Exception, version
+        -:   19:// 3.1, as published by the Free Software Foundation.
+        -:   20:
+        -:   21:// You should have received a copy of the GNU General Public License and
+        -:   22:// a copy of the GCC Runtime Library Exception along with this program;
+        -:   23:// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+        -:   24:// <http://www.gnu.org/licenses/>.
+        -:   25:
+        -:   26:/*
+        -:   27: *
+        -:   28: * Copyright (c) 1994
+        -:   29: * Hewlett-Packard Company
+        -:   30: *
+        -:   31: * Permission to use, copy, modify, distribute and sell this software
+        -:   32: * and its documentation for any purpose is hereby granted without fee,
+        -:   33: * provided that the above copyright notice appear in all copies and
+        -:   34: * that both that copyright notice and this permission notice appear
+        -:   35: * in supporting documentation.  Hewlett-Packard Company makes no
+        -:   36: * representations about the suitability of this software for any
+        -:   37: * purpose.  It is provided "as is" without express or implied warranty.
+        -:   38: *
+        -:   39: *
+        -:   40: * Copyright (c) 1996-1998
+        -:   41: * Silicon Graphics Computer Systems, Inc.
+        -:   42: *
+        -:   43: * Permission to use, copy, modify, distribute and sell this software
+        -:   44: * and its documentation for any purpose is hereby granted without fee,
+        -:   45: * provided that the above copyright notice appear in all copies and
+        -:   46: * that both that copyright notice and this permission notice appear
+        -:   47: * in supporting documentation.  Silicon Graphics makes no
+        -:   48: * representations about the suitability of this software for any
+        -:   49: * purpose.  It is provided "as is" without express or implied warranty.
+        -:   50: */
+        -:   51:
+        -:   52:/** @file bits/stl_iterator_base_funcs.h
+        -:   53: *  This is an internal header file, included by other library headers.
+        -:   54: *  Do not attempt to use it directly. @headername{iterator}
+        -:   55: *
+        -:   56: *  This file contains all of the general iterator-related utility
+        -:   57: *  functions, such as distance() and advance().
+        -:   58: */
+        -:   59:
+        -:   60:#ifndef _STL_ITERATOR_BASE_FUNCS_H
+        -:   61:#define _STL_ITERATOR_BASE_FUNCS_H 1
+        -:   62:
+        -:   63:#pragma GCC system_header
+        -:   64:
+        -:   65:#include <bits/concept_check.h>
+        -:   66:
+        -:   67:namespace std _GLIBCXX_VISIBILITY(default)
+        -:   68:{
+        -:   69:_GLIBCXX_BEGIN_NAMESPACE_VERSION
+        -:   70:
+        -:   71:  template<typename _InputIterator>
+        -:   72:    inline typename iterator_traits<_InputIterator>::difference_type
+        -:   73:    __distance(_InputIterator __first, _InputIterator __last,
+        -:   74:               input_iterator_tag)
+        -:   75:    {
+        -:   76:      // concept requirements
+        -:   77:      __glibcxx_function_requires(_InputIteratorConcept<_InputIterator>)
+        -:   78:
+        -:   79:      typename iterator_traits<_InputIterator>::difference_type __n = 0;
+        -:   80:      while (__first != __last)
+        -:   81:	{
+        -:   82:	  ++__first;
+        -:   83:	  ++__n;
+        -:   84:	}
+        -:   85:      return __n;
+        -:   86:    }
+        -:   87:
+        -:   88:  template<typename _RandomAccessIterator>
+        -:   89:    inline typename iterator_traits<_RandomAccessIterator>::difference_type
+function _ZSt10__distanceIPcENSt15iterator_traitsIT_E15difference_typeES2_S2_St26random_access_iterator_tag called 0 returned 0% blocks executed 0%
+    #####:   90:    __distance(_RandomAccessIterator __first, _RandomAccessIterator __last,
+        -:   91:               random_access_iterator_tag)
+        -:   92:    {
+        -:   93:      // concept requirements
+        -:   94:      __glibcxx_function_requires(_RandomAccessIteratorConcept<
+        -:   95:				  _RandomAccessIterator>)
+    #####:   96:      return __last - __first;
+        -:   97:    }
+        -:   98:
+        -:   99:  /**
+        -:  100:   *  @brief A generalization of pointer arithmetic.
+        -:  101:   *  @param  __first  An input iterator.
+        -:  102:   *  @param  __last  An input iterator.
+        -:  103:   *  @return  The distance between them.
+        -:  104:   *
+        -:  105:   *  Returns @c n such that __first + n == __last.  This requires
+        -:  106:   *  that @p __last must be reachable from @p __first.  Note that @c
+        -:  107:   *  n may be negative.
+        -:  108:   *
+        -:  109:   *  For random access iterators, this uses their @c + and @c - operations
+        -:  110:   *  and are constant time.  For other %iterator classes they are linear time.
+        -:  111:  */
+        -:  112:  template<typename _InputIterator>
+        -:  113:    inline typename iterator_traits<_InputIterator>::difference_type
+function _ZSt8distanceIPcENSt15iterator_traitsIT_E15difference_typeES2_S2_ called 0 returned 0% blocks executed 0%
+    #####:  114:    distance(_InputIterator __first, _InputIterator __last)
+        -:  115:    {
+        -:  116:      // concept requirements -- taken care of in __distance
+        -:  117:      return std::__distance(__first, __last,
+    #####:  118:			     std::__iterator_category(__first));
+call    0 never executed
+call    1 never executed
+        -:  119:    }
+        -:  120:
+        -:  121:  template<typename _InputIterator, typename _Distance>
+        -:  122:    inline void
+        -:  123:    __advance(_InputIterator& __i, _Distance __n, input_iterator_tag)
+        -:  124:    {
+        -:  125:      // concept requirements
+        -:  126:      __glibcxx_function_requires(_InputIteratorConcept<_InputIterator>)
+        -:  127:      while (__n--)
+        -:  128:	++__i;
+        -:  129:    }
+        -:  130:
+        -:  131:  template<typename _BidirectionalIterator, typename _Distance>
+        -:  132:    inline void
+        -:  133:    __advance(_BidirectionalIterator& __i, _Distance __n,
+        -:  134:	      bidirectional_iterator_tag)
+        -:  135:    {
+        -:  136:      // concept requirements
+        -:  137:      __glibcxx_function_requires(_BidirectionalIteratorConcept<
+        -:  138:				  _BidirectionalIterator>)
+        -:  139:      if (__n > 0)
+        -:  140:        while (__n--)
+        -:  141:	  ++__i;
+        -:  142:      else
+        -:  143:        while (__n++)
+        -:  144:	  --__i;
+        -:  145:    }
+        -:  146:
+        -:  147:  template<typename _RandomAccessIterator, typename _Distance>
+        -:  148:    inline void
+        -:  149:    __advance(_RandomAccessIterator& __i, _Distance __n,
+        -:  150:              random_access_iterator_tag)
+        -:  151:    {
+        -:  152:      // concept requirements
+        -:  153:      __glibcxx_function_requires(_RandomAccessIteratorConcept<
+        -:  154:				  _RandomAccessIterator>)
+        -:  155:      __i += __n;
+        -:  156:    }
+        -:  157:
+        -:  158:  /**
+        -:  159:   *  @brief A generalization of pointer arithmetic.
+        -:  160:   *  @param  __i  An input iterator.
+        -:  161:   *  @param  __n  The @a delta by which to change @p __i.
+        -:  162:   *  @return  Nothing.
+        -:  163:   *
+        -:  164:   *  This increments @p i by @p n.  For bidirectional and random access
+        -:  165:   *  iterators, @p __n may be negative, in which case @p __i is decremented.
+        -:  166:   *
+        -:  167:   *  For random access iterators, this uses their @c + and @c - operations
+        -:  168:   *  and are constant time.  For other %iterator classes they are linear time.
+        -:  169:  */
+        -:  170:  template<typename _InputIterator, typename _Distance>
+        -:  171:    inline void
+        -:  172:    advance(_InputIterator& __i, _Distance __n)
+        -:  173:    {
+        -:  174:      // concept requirements -- taken care of in __advance
+        -:  175:      typename iterator_traits<_InputIterator>::difference_type __d = __n;
+        -:  176:      std::__advance(__i, __d, std::__iterator_category(__i));
+        -:  177:    }
+        -:  178:
+        -:  179:#ifdef __GXX_EXPERIMENTAL_CXX0X__
+        -:  180:
+        -:  181:  template<typename _ForwardIterator>
+        -:  182:    inline _ForwardIterator
+        -:  183:    next(_ForwardIterator __x, typename
+        -:  184:	 iterator_traits<_ForwardIterator>::difference_type __n = 1)
+        -:  185:    {
+        -:  186:      std::advance(__x, __n);
+        -:  187:      return __x;
+        -:  188:    }
+        -:  189:
+        -:  190:  template<typename _BidirectionalIterator>
+        -:  191:    inline _BidirectionalIterator
+        -:  192:    prev(_BidirectionalIterator __x, typename
+        -:  193:	 iterator_traits<_BidirectionalIterator>::difference_type __n = 1) 
+        -:  194:    {
+        -:  195:      std::advance(__x, -__n);
+        -:  196:      return __x;
+        -:  197:    }
+        -:  198:
+        -:  199:#endif // __GXX_EXPERIMENTAL_CXX0X__
+        -:  200:
+        -:  201:_GLIBCXX_END_NAMESPACE_VERSION
+        -:  202:} // namespace
+        -:  203:
+        -:  204:#endif /* _STL_ITERATOR_BASE_FUNCS_H */

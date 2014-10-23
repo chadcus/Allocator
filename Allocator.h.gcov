@@ -1,0 +1,381 @@
+        -:    0:Source:Allocator.h
+        -:    0:Graph:TestAllocator.gcno
+        -:    0:Data:TestAllocator.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:// ------------------------------
+        -:    2:// projects/allocator/Allocator.h
+        -:    3:// Copyright (C) 2014
+        -:    4:// Glenn P. Downing
+        -:    5:// ------------------------------
+        -:    6:
+        -:    7:#ifndef Allocator_h
+        -:    8:#define Allocator_h
+        -:    9:
+        -:   10:// --------
+        -:   11:// includes
+        -:   12:// --------
+        -:   13:
+        -:   14:#include <cassert>   // assert
+        -:   15:#include <cstddef>   // ptrdiff_t, size_t
+        -:   16:#include <new>       // bad_alloc, new
+        -:   17:#include <stdexcept> // invalid_argument
+        -:   18:
+        -:   19:// ---------
+        -:   20:// Allocator
+        -:   21:// ---------
+        -:   22:
+        -:   23:template <typename T, int N>
+        -:   24:class Allocator {
+        -:   25:    public:
+        -:   26:        // --------
+        -:   27:        // typedefs
+        -:   28:        // --------
+        -:   29:
+        -:   30:        typedef T                 value_type;
+        -:   31:
+        -:   32:        typedef std::size_t       size_type;
+        -:   33:        typedef std::ptrdiff_t    difference_type;
+        -:   34:
+        -:   35:        typedef       value_type*       pointer;
+        -:   36:        typedef const value_type* const_pointer;
+        -:   37:
+        -:   38:        typedef       value_type&       reference;
+        -:   39:        typedef const value_type& const_reference;
+        -:   40:
+        -:   41:    public:
+        -:   42:        // -----------
+        -:   43:        // operator ==
+        -:   44:        // -----------
+        -:   45:
+        -:   46:        friend bool operator == (const Allocator&, const Allocator&) {
+        -:   47:            return true;}                                              // this is correct
+        -:   48:
+        -:   49:        // -----------
+        -:   50:        // operator !=
+        -:   51:        // -----------
+        -:   52:
+        -:   53:        friend bool operator != (const Allocator& lhs, const Allocator& rhs) {
+        -:   54:            return !(lhs == rhs);}
+        -:   55:
+        -:   56:    private:
+        -:   57:        // ----
+        -:   58:        // data
+        -:   59:        // ----
+        -:   60:
+        -:   61:        char a[N];
+        -:   62:
+        -:   63:        // -----
+        -:   64:        // valid
+        -:   65:        // -----
+        -:   66:
+        -:   67:        /**
+        -:   68:         * O(1) in space
+        -:   69:         * O(n) in time
+        -:   70:         * <your documentation>
+        -:   71:         */
+function _ZNK9AllocatorIiLi100EE5validEv called 28 returned 100% blocks executed 81%
+function _ZNK9AllocatorIdLi100EE5validEv called 28 returned 100% blocks executed 81%
+       56:   72:        bool valid () const {
+        -:   73:    	    assert(N > 8);
+       56:   74:    	    int sentinel = 0;
+       56:   75:    	    int posVal = 0;
+        -:   76:
+       86:   77:            for(int i = 0; i < N; i += posVal + 8){
+branch  0 taken 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+branch  3 taken 0% (fallthrough)
+       86:   78:                sentinel = view(i);
+call    0 returned 100%
+call    1 returned 100%
+       86:   79:                posVal = (sentinel < 0 ? -sentinel : sentinel);
+       86:   80:                if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 100% (fallthrough)
+branch  3 taken 0%
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+branch  7 taken 0% (fallthrough)
+branch  8 taken 100%
+branch  9 taken 100% (fallthrough)
+branch 10 taken 0%
+branch 11 taken 100% (fallthrough)
+branch 12 taken 0%
+call   13 returned 100%
+branch 14 taken 0% (fallthrough)
+branch 15 taken 100%
+branch 16 taken 0% (fallthrough)
+branch 17 taken 100%
+    #####:   81:                    return false;
+       86:   82:                if(i + posVal + 7 == N - 1)
+branch  0 taken 52% (fallthrough)
+branch  1 taken 48%
+branch  2 taken 88% (fallthrough)
+branch  3 taken 13%
+       56:   83:                    return true;
+        -:   84:    	    }
+        -:   85:            
+    #####:   86:            return false;}
+        -:   87:
+        -:   88:        /**
+        -:   89:         * O(1) in space
+        -:   90:         * O(1) in time
+        -:   91:         * <your documentation>
+        -:   92:         */
+function _ZN9AllocatorIiLi100EE4viewEi called 16 returned 100% blocks executed 100%
+function _ZN9AllocatorIdLi100EE4viewEi called 14 returned 100% blocks executed 100%
+       30:   93:        int& view (int i) {
+       30:   94:            return *reinterpret_cast<int*>(&a[i]);}
+        -:   95:
+        -:   96:    public:
+        -:   97:        // ------------
+        -:   98:        // constructors
+        -:   99:        // ------------
+        -:  100:
+        -:  101:        /**
+        -:  102:         * O(1) in space
+        -:  103:         * O(1) in time
+        -:  104:         * throw a bad_alloc exception, if N is less than sizeof(T) + (2 * sizeof(int))
+        -:  105:         */
+function _ZN9AllocatorIiLi100EEC2Ev called 2 returned 100% blocks executed 83%
+function _ZN9AllocatorIdLi100EEC2Ev called 2 returned 100% blocks executed 83%
+        4:  106:        Allocator () {
+        4:  107:            view(0) = N - 8;
+call    0 returned 100%
+call    1 returned 100%
+        4:  108:            view(N - 4) = N - 8;
+call    0 returned 100%
+call    1 returned 100%
+        4:  109:            assert(valid());}
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        -:  110:
+        -:  111:        // Default copy, destructor, and copy assignment
+        -:  112:        // Allocator  (const Allocator&);
+        -:  113:        // ~Allocator ();
+        -:  114:        // Allocator& operator = (const Allocator&);
+        -:  115:
+        -:  116:        // --------
+        -:  117:        // allocate
+        -:  118:        // --------
+        -:  119:
+        -:  120:        /**
+        -:  121:         * O(1) in space
+        -:  122:         * O(n) in time
+        -:  123:         * after allocation there must be enough space left for a valid block
+        -:  124:         * the smallest allowable block is sizeof(T) + (2 * sizeof(int))
+        -:  125:         * choose the first block that fits
+        -:  126:         * return 0, if allocation fails
+        -:  127:         */
+function _ZN9AllocatorIiLi100EE8allocateEm called 2 returned 100% blocks executed 45%
+function _ZN9AllocatorIdLi100EE8allocateEm called 2 returned 100% blocks executed 61%
+        4:  128:        pointer allocate (size_type n) {
+        4:  129:    	    if(n == 0)
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+    #####:  130:                return 0;
+        -:  131:    	    
+        4:  132:    	    int posVal = 0;
+        4:  133:    	    int aloBlocks = n * static_cast<int>(sizeof(T));
+        4:  134:    	    assert(aloBlocks > 0);
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+call    2 never executed
+branch  3 taken 0% (fallthrough)
+branch  4 taken 100%
+call    5 never executed
+        -:  135:
+        4:  136:    	    for(int i = 0; i < N; i += posVal + 8){
+branch  0 taken 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+branch  3 taken 0% (fallthrough)
+        4:  137:                int& front_sentinel = view(i);
+call    0 returned 100%
+call    1 returned 100%
+        4:  138:                posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+        4:  139:                int& back_sentinel = view(i + posVal + 4);
+call    0 returned 100%
+call    1 returned 100%
+        4:  140:                if (front_sentinel == aloBlocks) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+    #####:  141:                    front_sentinel = -front_sentinel;
+    #####:  142:                    back_sentinel = -back_sentinel;
+    #####:  143:                    assert(valid());
+call    0 never executed
+branch  1 never executed
+branch  2 never executed
+call    3 never executed
+call    4 never executed
+branch  5 never executed
+branch  6 never executed
+call    7 never executed
+    #####:  144:                    return reinterpret_cast<pointer>(&a[i+4]);
+        4:  145:                }else if(front_sentinel > 0 && front_sentinel >= static_cast<int>(sizeof(T)) + aloBlocks + 8){
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 100% (fallthrough)
+branch  3 taken 0%
+branch  4 taken 100% (fallthrough)
+branch  5 taken 0%
+branch  6 taken 50% (fallthrough)
+branch  7 taken 50%
+        3:  146:                    front_sentinel = -aloBlocks;
+        3:  147:                    view(i + aloBlocks + 4) = -aloBlocks;
+call    0 returned 100%
+call    1 returned 100%
+        3:  148:                    view(i + aloBlocks + 8) = back_sentinel - aloBlocks - 8;
+call    0 returned 100%
+call    1 returned 100%
+        3:  149:                    back_sentinel = back_sentinel - aloBlocks - 8;
+        3:  150:                    assert(valid());
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        3:  151:                    return reinterpret_cast<pointer>(&a[i+4]);
+        1:  152:                }else if (front_sentinel > 0 && front_sentinel >= aloBlocks) {
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+branch  4 taken 100% (fallthrough)
+branch  5 taken 0%
+branch  6 taken 100% (fallthrough)
+branch  7 taken 0%
+        1:  153:                    front_sentinel = -front_sentinel;
+        1:  154:                    back_sentinel = -back_sentinel;
+        1:  155:                    assert(valid());
+call    0 never executed
+branch  1 never executed
+branch  2 never executed
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        1:  156:                    return reinterpret_cast<pointer>(&a[i+4]);}
+        -:  157:    	    }
+    #####:  158:            assert(valid());
+call    0 never executed
+branch  1 never executed
+branch  2 never executed
+call    3 never executed
+call    4 never executed
+branch  5 never executed
+branch  6 never executed
+call    7 never executed
+    #####:  159:            return 0;}
+        -:  160:
+        -:  161:        // ---------
+        -:  162:        // construct
+        -:  163:        // ---------
+        -:  164:
+        -:  165:        /**
+        -:  166:         * O(1) in space
+        -:  167:         * O(1) in time
+        -:  168:         * <your documentation>
+        -:  169:         */
+function _ZN9AllocatorIiLi100EE9constructEPiRKi called 11 returned 100% blocks executed 75%
+function _ZN9AllocatorIdLi100EE9constructEPdRKd called 11 returned 100% blocks executed 75%
+       22:  170:        void construct (pointer p, const_reference v) {
+       22:  171:            new (p) T(v);                               // this is correct and exempt
+call    0 returned 100%
+branch  1 taken 100% (fallthrough)
+branch  2 taken 0%
+call    3 returned 100%
+branch  4 taken 100% (fallthrough)
+branch  5 taken 0%
+       22:  172:            assert(valid());}                           // from the prohibition of new
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        -:  173:
+        -:  174:        // ----------
+        -:  175:        // deallocate
+        -:  176:        // ----------
+        -:  177:
+        -:  178:        /**
+        -:  179:         * O(1) in space
+        -:  180:         * O(1) in time
+        -:  181:         * after deallocation adjacent free blocks must be coalesced
+        -:  182:         * <your documentation>
+        -:  183:         */
+function _ZN9AllocatorIiLi100EE10deallocateEPim called 2 returned 100% blocks executed 83%
+function _ZN9AllocatorIdLi100EE10deallocateEPdm called 2 returned 100% blocks executed 83%
+        4:  184:        void deallocate (pointer p, size_type = 0) {
+        4:  185:            int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
+call    0 returned 100%
+call    1 returned 100%
+        4:  186:            int posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+        4:  187:            int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
+call    0 returned 100%
+call    1 returned 100%
+        4:  188:            assert(valid());}
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        -:  189:
+        -:  190:        // -------
+        -:  191:        // destroy
+        -:  192:        // -------
+        -:  193:
+        -:  194:        /**
+        -:  195:         * O(1) in space
+        -:  196:         * O(1) in time
+        -:  197:         * throw an invalid_argument exception, if pointer is invalid
+        -:  198:         * <your documentation>
+        -:  199:         */
+function _ZN9AllocatorIiLi100EE7destroyEPi called 11 returned 100% blocks executed 75%
+function _ZN9AllocatorIdLi100EE7destroyEPd called 11 returned 100% blocks executed 75%
+       22:  200:        void destroy (pointer p) {
+        -:  201:            p->~T();               // this is correct
+       22:  202:            assert(valid());}
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+call    3 never executed
+call    4 returned 100%
+branch  5 taken 0% (fallthrough)
+branch  6 taken 100%
+call    7 never executed
+        -:  203:
+        -:  204:        /**
+        -:  205:         * O(1) in space
+        -:  206:         * O(1) in time
+        -:  207:         * <your documentation>
+        -:  208:         */
+function _ZNK9AllocatorIiLi100EE4viewEi called 108 returned 100% blocks executed 100%
+function _ZNK9AllocatorIdLi100EE4viewEi called 64 returned 100% blocks executed 100%
+      172:  209:        const int& view (int i) const {
+      172:  210:            return *reinterpret_cast<const int*>(&a[i]);}};
+        -:  211:
+        -:  212:#endif // Allocator_h
