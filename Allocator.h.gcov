@@ -20,7 +20,7 @@
         -:   15:#include <cstddef>   // ptrdiff_t, size_t
         -:   16:#include <new>       // bad_alloc, new
         -:   17:#include <stdexcept> // invalid_argument
-        -:   18:
+        -:   18:#include <cmath>
         -:   19:// ---------
         -:   20:// Allocator
         -:   21:// ---------
@@ -89,7 +89,7 @@ branch  3 taken 0% (fallthrough)
        86:   78:                sentinel = view(i);
 call    0 returned 100%
 call    1 returned 100%
-       86:   79:                posVal = (sentinel < 0 ? -sentinel : sentinel);
+       86:   79:                posVal = fabs(sentinel);
        86:   80:                if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
 branch  0 taken 100% (fallthrough)
 branch  1 taken 0%
@@ -204,7 +204,7 @@ branch  3 taken 0% (fallthrough)
         4:  137:                int& front_sentinel = view(i);
 call    0 returned 100%
 call    1 returned 100%
-        4:  138:                posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+        4:  138:                posVal = fabs(front_sentinel);
         4:  139:                int& back_sentinel = view(i + posVal + 4);
 call    0 returned 100%
 call    1 returned 100%
@@ -224,7 +224,7 @@ call    4 never executed
 branch  5 never executed
 branch  6 never executed
 call    7 never executed
-    #####:  144:                    return reinterpret_cast<pointer>(&a[i+4]);
+    #####:  144:                    return reinterpret_cast<pointer>(a + i + 4);
         4:  145:                }else if(front_sentinel > 0 && front_sentinel >= static_cast<int>(sizeof(T)) + aloBlocks + 8){
 branch  0 taken 100% (fallthrough)
 branch  1 taken 0%
@@ -251,7 +251,7 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        3:  151:                    return reinterpret_cast<pointer>(&a[i+4]);
+        3:  151:                    return reinterpret_cast<pointer>(a + i + 4);
         1:  152:                }else if (front_sentinel > 0 && front_sentinel >= aloBlocks) {
 branch  0 never executed
 branch  1 never executed
@@ -272,7 +272,7 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        1:  156:                    return reinterpret_cast<pointer>(&a[i+4]);}
+        1:  156:                    return reinterpret_cast<pointer>(a + i + 4);}
         -:  157:    	    }
     #####:  158:            assert(valid());
 call    0 never executed
@@ -324,17 +324,42 @@ call    7 never executed
         -:  181:         * after deallocation adjacent free blocks must be coalesced
         -:  182:         * <your documentation>
         -:  183:         */
-function _ZN9AllocatorIiLi100EE10deallocateEPim called 2 returned 100% blocks executed 83%
-function _ZN9AllocatorIdLi100EE10deallocateEPdm called 2 returned 100% blocks executed 83%
+function _ZN9AllocatorIiLi100EE10deallocateEPim called 2 returned 100% blocks executed 67%
+function _ZN9AllocatorIdLi100EE10deallocateEPdm called 2 returned 100% blocks executed 67%
         4:  184:        void deallocate (pointer p, size_type = 0) {
         4:  185:            int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
 call    0 returned 100%
 call    1 returned 100%
-        4:  186:            int posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+        4:  186:            int posVal = fabs(front_sentinel);
         4:  187:            int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
 call    0 returned 100%
 call    1 returned 100%
-        4:  188:            assert(valid());}
+        -:  188:
+        4:  189:            char* front = (char*)&front_sentinel;
+        -:  190:            
+        4:  191:            if(front - 4 > a){
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+    #####:  192:                int& prev_sentinel = view(front - a - 4);
+call    0 never executed
+call    1 never executed
+    #####:  193:                std::cout << prev_sentinel << std::endl;
+call    0 never executed
+call    1 never executed
+call    2 never executed
+call    3 never executed
+        -:  194:            }else{
+        4:  195:                front_sentinel = posVal;
+        4:  196:                back_sentinel = posVal;
+        4:  197:                std::cout << front_sentinel << std::endl;
+call    0 returned 100%
+call    1 returned 100%
+call    2 returned 100%
+call    3 returned 100%
+        -:  198:            }
+        4:  199:            assert(valid());}
 call    0 returned 100%
 branch  1 taken 0% (fallthrough)
 branch  2 taken 100%
@@ -343,22 +368,22 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        -:  189:
-        -:  190:        // -------
-        -:  191:        // destroy
-        -:  192:        // -------
-        -:  193:
-        -:  194:        /**
-        -:  195:         * O(1) in space
-        -:  196:         * O(1) in time
-        -:  197:         * throw an invalid_argument exception, if pointer is invalid
-        -:  198:         * <your documentation>
-        -:  199:         */
+        -:  200:
+        -:  201:        // -------
+        -:  202:        // destroy
+        -:  203:        // -------
+        -:  204:
+        -:  205:        /**
+        -:  206:         * O(1) in space
+        -:  207:         * O(1) in time
+        -:  208:         * throw an invalid_argument exception, if pointer is invalid
+        -:  209:         * <your documentation>
+        -:  210:         */
 function _ZN9AllocatorIiLi100EE7destroyEPi called 11 returned 100% blocks executed 75%
 function _ZN9AllocatorIdLi100EE7destroyEPd called 11 returned 100% blocks executed 75%
-       22:  200:        void destroy (pointer p) {
-        -:  201:            p->~T();               // this is correct
-       22:  202:            assert(valid());}
+       22:  211:        void destroy (pointer p) {
+        -:  212:            p->~T();               // this is correct
+       22:  213:            assert(valid());}
 call    0 returned 100%
 branch  1 taken 0% (fallthrough)
 branch  2 taken 100%
@@ -367,15 +392,15 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        -:  203:
-        -:  204:        /**
-        -:  205:         * O(1) in space
-        -:  206:         * O(1) in time
-        -:  207:         * <your documentation>
-        -:  208:         */
+        -:  214:
+        -:  215:        /**
+        -:  216:         * O(1) in space
+        -:  217:         * O(1) in time
+        -:  218:         * <your documentation>
+        -:  219:         */
 function _ZNK9AllocatorIiLi100EE4viewEi called 108 returned 100% blocks executed 100%
 function _ZNK9AllocatorIdLi100EE4viewEi called 64 returned 100% blocks executed 100%
-      172:  209:        const int& view (int i) const {
-      172:  210:            return *reinterpret_cast<const int*>(&a[i]);}};
-        -:  211:
-        -:  212:#endif // Allocator_h
+      172:  220:        const int& view (int i) const {
+      172:  221:            return *reinterpret_cast<const int*>(&a[i]);}};
+        -:  222:
+        -:  223:#endif // Allocator_h

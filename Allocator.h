@@ -15,7 +15,7 @@
 #include <cstddef>   // ptrdiff_t, size_t
 #include <new>       // bad_alloc, new
 #include <stdexcept> // invalid_argument
-
+#include <cmath>
 // ---------
 // Allocator
 // ---------
@@ -76,7 +76,7 @@ class Allocator {
 
             for(int i = 0; i < N; i += posVal + 8){
                 sentinel = view(i);
-                posVal = (sentinel < 0 ? -sentinel : sentinel);
+                posVal = fabs(sentinel);
                 if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
                     return false;
                 if(i + posVal + 7 == N - 1)
@@ -135,25 +135,25 @@ class Allocator {
 
     	    for(int i = 0; i < N; i += posVal + 8){
                 int& front_sentinel = view(i);
-                posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
+                posVal = fabs(front_sentinel);
                 int& back_sentinel = view(i + posVal + 4);
                 if (front_sentinel == aloBlocks) {
                     front_sentinel = -front_sentinel;
                     back_sentinel = -back_sentinel;
                     assert(valid());
-                    return reinterpret_cast<pointer>(&a[i+4]);
+                    return reinterpret_cast<pointer>(a + i + 4);
                 }else if(front_sentinel > 0 && front_sentinel >= static_cast<int>(sizeof(T)) + aloBlocks + 8){
                     front_sentinel = -aloBlocks;
                     view(i + aloBlocks + 4) = -aloBlocks;
                     view(i + aloBlocks + 8) = back_sentinel - aloBlocks - 8;
                     back_sentinel = back_sentinel - aloBlocks - 8;
                     assert(valid());
-                    return reinterpret_cast<pointer>(&a[i+4]);
+                    return reinterpret_cast<pointer>(a + i + 4);
                 }else if (front_sentinel > 0 && front_sentinel >= aloBlocks) {
                     front_sentinel = -front_sentinel;
                     back_sentinel = -back_sentinel;
                     assert(valid());
-                    return reinterpret_cast<pointer>(&a[i+4]);}
+                    return reinterpret_cast<pointer>(a + i + 4);}
     	    }
             assert(valid());
             return 0;}
@@ -182,9 +182,20 @@ class Allocator {
          * <your documentation>
          */
         void deallocate (pointer p, size_type = 0) {
-            // int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
-            // int posVal = (front_sentinel < 0 ? -front_sentinel : front_sentinel);
-            // int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
+            int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
+            int posVal = fabs(front_sentinel);
+            int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
+
+            char* front = (char*)&front_sentinel;
+            
+            if(front - 4 > a){
+                int& prev_sentinel = view(front - a - 4);
+                std::cout << prev_sentinel << std::endl;
+            }else{
+                front_sentinel = posVal;
+                back_sentinel = posVal;
+                std::cout << front_sentinel << std::endl;
+            }
             assert(valid());}
 
         // -------
