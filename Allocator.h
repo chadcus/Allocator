@@ -185,16 +185,67 @@ class Allocator {
             int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
             int posVal = fabs(front_sentinel);
             int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
-
+            
             char* front = (char*)&front_sentinel;
+            char* back = (char*)&back_sentinel;
             
             if(front - 4 > a){
                 int& prev_sentinel = view(front - a - 4);
-                std::cout << prev_sentinel << std::endl;
+                if(prev_sentinel > 0){
+                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
+                    back_sentinel = posVal + prev_sentinel + 8;
+                    front_sentinel = 0;
+                    prev_sentinel = 0;
+                }else{
+                    front_sentinel = posVal;
+                    back_sentinel = posVal;
+                    // std::cout << view(N - 4) << std::endl;
+                }
+            }else if(back + 4 < a + N){
+                int& next_sentinel = view(back - a + 4);
+                if(next_sentinel > 0){
+                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
+                    // std::cout << posVal + next_sentinel + 8 << std::endl;
+                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+                    front_sentinel = posVal + next_sentinel + 8;
+                    back_sentinel = 0;
+                    next_sentinel = 0;
+                }else{
+                    front_sentinel = posVal;
+                    back_sentinel = posVal;
+                    // std::cout << view(N - 4) << std::endl;
+                }
+            }else if(back + 4 < a + N && front - 4 > a){
+                int& next_sentinel = view(back - a + 4);
+                int& prev_sentinel = view(front - a - 4);
+                if(next_sentinel > 0 && prev_sentinel > 0){
+                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
+                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+                    next_sentinel = 0;
+                    prev_sentinel = 0;
+                    back_sentinel = 0;
+                    front_sentinel = 0;
+                }else if(prev_sentinel > 0){
+                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
+                    back_sentinel = posVal + prev_sentinel + 8;
+                    front_sentinel = 0;
+                    prev_sentinel = 0;
+                }else if(next_sentinel > 0){
+                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
+                    // std::cout << posVal + next_sentinel + 8 << std::endl;
+                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+                    front_sentinel = posVal + next_sentinel + 8;
+                    back_sentinel = 0;
+                    next_sentinel = 0;
+                }else{
+                    front_sentinel = posVal;
+                    back_sentinel = posVal;
+                    // std::cout << view(N - 4) << std::endl;
+                }
             }else{
                 front_sentinel = posVal;
                 back_sentinel = posVal;
-                std::cout << front_sentinel << std::endl;
+                // std::cout << view(N - 4) << std::endl;
             }
             assert(valid());}
 

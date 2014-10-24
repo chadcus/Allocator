@@ -81,16 +81,16 @@ function _ZNK9AllocatorIdLi100EE5validEv called 28 returned 100% blocks executed
        56:   74:    	    int sentinel = 0;
        56:   75:    	    int posVal = 0;
         -:   76:
-       86:   77:            for(int i = 0; i < N; i += posVal + 8){
+       83:   77:            for(int i = 0; i < N; i += posVal + 8){
 branch  0 taken 100%
 branch  1 taken 0% (fallthrough)
 branch  2 taken 100%
 branch  3 taken 0% (fallthrough)
-       86:   78:                sentinel = view(i);
+       83:   78:                sentinel = view(i);
 call    0 returned 100%
 call    1 returned 100%
-       86:   79:                posVal = fabs(sentinel);
-       86:   80:                if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
+       83:   79:                posVal = fabs(sentinel);
+       83:   80:                if(posVal == 0 || (i + posVal + 8) > N || view(i + posVal + 4) != sentinel)
 branch  0 taken 100% (fallthrough)
 branch  1 taken 0%
 branch  2 taken 100% (fallthrough)
@@ -110,11 +110,11 @@ branch 15 taken 100%
 branch 16 taken 0% (fallthrough)
 branch 17 taken 100%
     #####:   81:                    return false;
-       86:   82:                if(i + posVal + 7 == N - 1)
-branch  0 taken 52% (fallthrough)
-branch  1 taken 48%
-branch  2 taken 88% (fallthrough)
-branch  3 taken 13%
+       83:   82:                if(i + posVal + 7 == N - 1)
+branch  0 taken 54% (fallthrough)
+branch  1 taken 46%
+branch  2 taken 90% (fallthrough)
+branch  3 taken 10%
        56:   83:                    return true;
         -:   84:    	    }
         -:   85:            
@@ -125,10 +125,10 @@ branch  3 taken 13%
         -:   90:         * O(1) in time
         -:   91:         * <your documentation>
         -:   92:         */
-function _ZN9AllocatorIiLi100EE4viewEi called 16 returned 100% blocks executed 100%
-function _ZN9AllocatorIdLi100EE4viewEi called 14 returned 100% blocks executed 100%
-       30:   93:        int& view (int i) {
-       30:   94:            return *reinterpret_cast<int*>(&a[i]);}
+function _ZN9AllocatorIiLi100EE4viewEi called 20 returned 100% blocks executed 100%
+function _ZN9AllocatorIdLi100EE4viewEi called 16 returned 100% blocks executed 100%
+       36:   93:        int& view (int i) {
+       36:   94:            return *reinterpret_cast<int*>(&a[i]);}
         -:   95:
         -:   96:    public:
         -:   97:        // ------------
@@ -324,8 +324,8 @@ call    7 never executed
         -:  181:         * after deallocation adjacent free blocks must be coalesced
         -:  182:         * <your documentation>
         -:  183:         */
-function _ZN9AllocatorIiLi100EE10deallocateEPim called 2 returned 100% blocks executed 67%
-function _ZN9AllocatorIdLi100EE10deallocateEPdm called 2 returned 100% blocks executed 67%
+function _ZN9AllocatorIiLi100EE10deallocateEPim called 2 returned 100% blocks executed 31%
+function _ZN9AllocatorIdLi100EE10deallocateEPdm called 2 returned 100% blocks executed 36%
         4:  184:        void deallocate (pointer p, size_type = 0) {
         4:  185:            int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
 call    0 returned 100%
@@ -334,32 +334,129 @@ call    1 returned 100%
         4:  187:            int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
 call    0 returned 100%
 call    1 returned 100%
-        -:  188:
+        -:  188:            
         4:  189:            char* front = (char*)&front_sentinel;
-        -:  190:            
-        4:  191:            if(front - 4 > a){
+        4:  190:            char* back = (char*)&back_sentinel;
+        -:  191:            
+        4:  192:            if(front - 4 > a){
 branch  0 taken 0% (fallthrough)
 branch  1 taken 100%
 branch  2 taken 0% (fallthrough)
 branch  3 taken 100%
-    #####:  192:                int& prev_sentinel = view(front - a - 4);
+    #####:  193:                int& prev_sentinel = view(front - a - 4);
 call    0 never executed
 call    1 never executed
-    #####:  193:                std::cout << prev_sentinel << std::endl;
+    #####:  194:                if(prev_sentinel > 0){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+    #####:  195:                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
 call    0 never executed
 call    1 never executed
-call    2 never executed
-call    3 never executed
-        -:  194:            }else{
-        4:  195:                front_sentinel = posVal;
-        4:  196:                back_sentinel = posVal;
-        4:  197:                std::cout << front_sentinel << std::endl;
+    #####:  196:                    back_sentinel = posVal + prev_sentinel + 8;
+    #####:  197:                    front_sentinel = 0;
+    #####:  198:                    prev_sentinel = 0;
+        -:  199:                }else{
+    #####:  200:                    front_sentinel = posVal;
+    #####:  201:                    back_sentinel = posVal;
+        -:  202:                    // std::cout << view(N - 4) << std::endl;
+        -:  203:                }
+        4:  204:            }else if(back + 4 < a + N){
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 50% (fallthrough)
+branch  3 taken 50%
+        3:  205:                int& next_sentinel = view(back - a + 4);
 call    0 returned 100%
 call    1 returned 100%
-call    2 returned 100%
-call    3 returned 100%
-        -:  198:            }
-        4:  199:            assert(valid());}
+        3:  206:                if(next_sentinel > 0){
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 100% (fallthrough)
+branch  3 taken 0%
+        -:  207:                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
+        -:  208:                    // std::cout << posVal + next_sentinel + 8 << std::endl;
+        3:  209:                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+call    0 returned 100%
+call    1 returned 100%
+        3:  210:                    front_sentinel = posVal + next_sentinel + 8;
+        3:  211:                    back_sentinel = 0;
+        3:  212:                    next_sentinel = 0;
+        -:  213:                }else{
+    #####:  214:                    front_sentinel = posVal;
+    #####:  215:                    back_sentinel = posVal;
+        -:  216:                    // std::cout << view(N - 4) << std::endl;
+        -:  217:                }
+        1:  218:            }else if(back + 4 < a + N && front - 4 > a){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+branch  4 taken 0% (fallthrough)
+branch  5 taken 100%
+branch  6 never executed
+branch  7 never executed
+    #####:  219:                int& next_sentinel = view(back - a + 4);
+call    0 never executed
+call    1 never executed
+    #####:  220:                int& prev_sentinel = view(front - a - 4);
+call    0 never executed
+call    1 never executed
+    #####:  221:                if(next_sentinel > 0 && prev_sentinel > 0){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+branch  4 never executed
+branch  5 never executed
+branch  6 never executed
+branch  7 never executed
+    #####:  222:                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
+call    0 never executed
+call    1 never executed
+    #####:  223:                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+call    0 never executed
+call    1 never executed
+    #####:  224:                    next_sentinel = 0;
+    #####:  225:                    prev_sentinel = 0;
+    #####:  226:                    back_sentinel = 0;
+    #####:  227:                    front_sentinel = 0;
+    #####:  228:                }else if(prev_sentinel > 0){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+    #####:  229:                    view(front - a - 8 - prev_sentinel) = posVal + prev_sentinel + 8;
+call    0 never executed
+call    1 never executed
+    #####:  230:                    back_sentinel = posVal + prev_sentinel + 8;
+    #####:  231:                    front_sentinel = 0;
+    #####:  232:                    prev_sentinel = 0;
+    #####:  233:                }else if(next_sentinel > 0){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+        -:  234:                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
+        -:  235:                    // std::cout << posVal + next_sentinel + 8 << std::endl;
+    #####:  236:                    view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
+call    0 never executed
+call    1 never executed
+    #####:  237:                    front_sentinel = posVal + next_sentinel + 8;
+    #####:  238:                    back_sentinel = 0;
+    #####:  239:                    next_sentinel = 0;
+        -:  240:                }else{
+    #####:  241:                    front_sentinel = posVal;
+    #####:  242:                    back_sentinel = posVal;
+        -:  243:                    // std::cout << view(N - 4) << std::endl;
+        -:  244:                }
+        -:  245:            }else{
+        1:  246:                front_sentinel = posVal;
+        1:  247:                back_sentinel = posVal;
+        -:  248:                // std::cout << view(N - 4) << std::endl;
+        -:  249:            }
+        4:  250:            assert(valid());}
 call    0 returned 100%
 branch  1 taken 0% (fallthrough)
 branch  2 taken 100%
@@ -368,22 +465,22 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        -:  200:
-        -:  201:        // -------
-        -:  202:        // destroy
-        -:  203:        // -------
-        -:  204:
-        -:  205:        /**
-        -:  206:         * O(1) in space
-        -:  207:         * O(1) in time
-        -:  208:         * throw an invalid_argument exception, if pointer is invalid
-        -:  209:         * <your documentation>
-        -:  210:         */
+        -:  251:
+        -:  252:        // -------
+        -:  253:        // destroy
+        -:  254:        // -------
+        -:  255:
+        -:  256:        /**
+        -:  257:         * O(1) in space
+        -:  258:         * O(1) in time
+        -:  259:         * throw an invalid_argument exception, if pointer is invalid
+        -:  260:         * <your documentation>
+        -:  261:         */
 function _ZN9AllocatorIiLi100EE7destroyEPi called 11 returned 100% blocks executed 75%
 function _ZN9AllocatorIdLi100EE7destroyEPd called 11 returned 100% blocks executed 75%
-       22:  211:        void destroy (pointer p) {
-        -:  212:            p->~T();               // this is correct
-       22:  213:            assert(valid());}
+       22:  262:        void destroy (pointer p) {
+        -:  263:            p->~T();               // this is correct
+       22:  264:            assert(valid());}
 call    0 returned 100%
 branch  1 taken 0% (fallthrough)
 branch  2 taken 100%
@@ -392,15 +489,15 @@ call    4 returned 100%
 branch  5 taken 0% (fallthrough)
 branch  6 taken 100%
 call    7 never executed
-        -:  214:
-        -:  215:        /**
-        -:  216:         * O(1) in space
-        -:  217:         * O(1) in time
-        -:  218:         * <your documentation>
-        -:  219:         */
-function _ZNK9AllocatorIiLi100EE4viewEi called 108 returned 100% blocks executed 100%
-function _ZNK9AllocatorIdLi100EE4viewEi called 64 returned 100% blocks executed 100%
-      172:  220:        const int& view (int i) const {
-      172:  221:            return *reinterpret_cast<const int*>(&a[i]);}};
-        -:  222:
-        -:  223:#endif // Allocator_h
+        -:  265:
+        -:  266:        /**
+        -:  267:         * O(1) in space
+        -:  268:         * O(1) in time
+        -:  269:         * <your documentation>
+        -:  270:         */
+function _ZNK9AllocatorIiLi100EE4viewEi called 104 returned 100% blocks executed 100%
+function _ZNK9AllocatorIdLi100EE4viewEi called 62 returned 100% blocks executed 100%
+      166:  271:        const int& view (int i) const {
+      166:  272:            return *reinterpret_cast<const int*>(&a[i]);}};
+        -:  273:
+        -:  274:#endif // Allocator_h
