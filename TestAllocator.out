@@ -1,51 +1,51 @@
-==19075== Memcheck, a memory error detector
-==19075== Copyright (C) 2002-2011, and GNU GPL'd, by Julian Seward et al.
-==19075== Using Valgrind-3.7.0 and LibVEX; rerun with -h for copyright info
-==19075== Command: TestAllocator
-==19075== 
+==21231== Memcheck, a memory error detector
+==21231== Copyright (C) 2002-2011, and GNU GPL'd, by Julian Seward et al.
+==21231== Using Valgrind-3.7.0 and LibVEX; rerun with -h for copyright info
+==21231== Command: TestAllocator
+==21231== 
 Running main() from gtest_main.cc
 [==========] Running 8 tests from 4 test cases.
 [----------] Global test environment set-up.
 [----------] 2 tests from TestAllocator/0, where TypeParam = std::allocator<int>
 [ RUN      ] TestAllocator/0.One
-[       OK ] TestAllocator/0.One (11 ms)
+[       OK ] TestAllocator/0.One (12 ms)
 [ RUN      ] TestAllocator/0.Ten
 [       OK ] TestAllocator/0.Ten (4 ms)
-[----------] 2 tests from TestAllocator/0 (26 ms total)
+[----------] 2 tests from TestAllocator/0 (27 ms total)
 
 [----------] 2 tests from TestAllocator/1, where TypeParam = std::allocator<double>
 [ RUN      ] TestAllocator/1.One
 [       OK ] TestAllocator/1.One (5 ms)
 [ RUN      ] TestAllocator/1.Ten
-[       OK ] TestAllocator/1.Ten (3 ms)
+[       OK ] TestAllocator/1.Ten (4 ms)
 [----------] 2 tests from TestAllocator/1 (9 ms total)
 
 [----------] 2 tests from TestAllocator/2, where TypeParam = Allocator<int, 100>
 [ RUN      ] TestAllocator/2.One
-[       OK ] TestAllocator/2.One (8 ms)
+[       OK ] TestAllocator/2.One (11 ms)
 [ RUN      ] TestAllocator/2.Ten
 [       OK ] TestAllocator/2.Ten (3 ms)
-[----------] 2 tests from TestAllocator/2 (11 ms total)
+[----------] 2 tests from TestAllocator/2 (14 ms total)
 
 [----------] 2 tests from TestAllocator/3, where TypeParam = Allocator<double, 100>
 [ RUN      ] TestAllocator/3.One
-[       OK ] TestAllocator/3.One (9 ms)
+[       OK ] TestAllocator/3.One (10 ms)
 [ RUN      ] TestAllocator/3.Ten
 [       OK ] TestAllocator/3.Ten (4 ms)
-[----------] 2 tests from TestAllocator/3 (13 ms total)
+[----------] 2 tests from TestAllocator/3 (14 ms total)
 
 [----------] Global test environment tear-down
-[==========] 8 tests from 4 test cases ran. (85 ms total)
+[==========] 8 tests from 4 test cases ran. (92 ms total)
 [  PASSED  ] 8 tests.
-==19075== 
-==19075== HEAP SUMMARY:
-==19075==     in use at exit: 0 bytes in 0 blocks
-==19075==   total heap usage: 639 allocs, 639 frees, 77,241 bytes allocated
-==19075== 
-==19075== All heap blocks were freed -- no leaks are possible
-==19075== 
-==19075== For counts of detected and suppressed errors, rerun with: -v
-==19075== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 2 from 2)
+==21231== 
+==21231== HEAP SUMMARY:
+==21231==     in use at exit: 0 bytes in 0 blocks
+==21231==   total heap usage: 639 allocs, 639 frees, 77,247 bytes allocated
+==21231== 
+==21231== All heap blocks were freed -- no leaks are possible
+==21231== 
+==21231== For counts of detected and suppressed errors, rerun with: -v
+==21231== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 2 from 2)
 File 'TestAllocator.c++'
 Lines executed:81.82% of 33
 Branches executed:62.50% of 288
@@ -101,10 +101,10 @@ Calls executed:12.50% of 56
 Creating 'gtest.h.gcov'
 
 File 'Allocator.h'
-Lines executed:60.78% of 102
-Branches executed:69.70% of 132
-Taken at least once:37.88% of 132
-Calls executed:48.68% of 76
+Lines executed:60.17% of 118
+Branches executed:59.26% of 216
+Taken at least once:31.48% of 216
+Calls executed:16.37% of 226
 Creating 'Allocator.h.gcov'
 
 File '/usr/include/c++/4.7/bits/basic_ios.h'
@@ -286,8 +286,14 @@ No calls
 Creating 'char_traits.h.gcov'
 
 File '/usr/include/c++/4.7/new'
-Lines executed:100.00% of 2
+Lines executed:66.67% of 3
+No branches
+Calls executed:0.00% of 1
+Creating 'new.gcov'
+
+File '/usr/include/c++/4.7/exception'
+Lines executed:0.00% of 1
 No branches
 No calls
-Creating 'new.gcov'
+Creating 'exception.gcov'
 

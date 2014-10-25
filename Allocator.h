@@ -104,6 +104,9 @@ class Allocator {
          * throw a bad_alloc exception, if N is less than sizeof(T) + (2 * sizeof(int))
          */
         Allocator () {
+            if(N < static_cast<int>(sizeof(T)) + 8){
+                throw std::domain_error("Not enough space for allocater");
+            }
             view(0) = N - 8;
             view(N - 4) = N - 8;
             assert(valid());}
@@ -126,8 +129,11 @@ class Allocator {
          * return 0, if allocation fails
          */
         pointer allocate (size_type n) {
-    	    if(n == 0)
-                return 0;
+    	    if(static_cast<int>(n) < 1)
+                throw std::bad_alloc();
+            else if(static_cast<int>(n) > N - 8){
+                throw std::bad_alloc();
+            }
     	    
     	    int posVal = 0;
     	    int aloBlocks = n * static_cast<int>(sizeof(T));
@@ -156,6 +162,7 @@ class Allocator {
                     return reinterpret_cast<pointer>(a + i + 4);}
     	    }
             assert(valid());
+            throw std::bad_alloc();
             return 0;}
 
         // ---------
@@ -181,11 +188,31 @@ class Allocator {
          * after deallocation adjacent free blocks must be coalesced
          * <your documentation>
          */
-        void deallocate (pointer p, size_type = 0) {
+        void deallocate (pointer p, size_type s = 0) {
+            if(p == 0 || p == NULL){
+                return;
+            }else if(static_cast<int>(reinterpret_cast<char*>(p) - a) < 0){
+                throw std::domain_error("Not a valid pointer");
+            }else if(static_cast<int>(reinterpret_cast<char*>(p) - a) > N - 4){
+                throw std::domain_error("Not a valid pointer");
+            }
+
+            if(N - 8 < static_cast<int>(s * static_cast<int>(sizeof(T)))){
+                throw std::domain_error("Not a valid amount to deallocate");
+            }else if(static_cast<int>(s) < 0){
+                throw std::domain_error("Not a valid amount to deallocate");
+            }
+
             int& front_sentinel = view(reinterpret_cast<char*>(p) - a - 4);
             int posVal = fabs(front_sentinel);
             int& back_sentinel = view(reinterpret_cast<char*>(p) - a + posVal);
-            
+
+            if(front_sentinel != back_sentinel){
+                throw std::domain_error("Not a valid pointer");
+            }else if(front_sentinel > 0){
+                throw std::domain_error("Not a valid pointer");
+            }
+
             char* front = (char*)&front_sentinel;
             char* back = (char*)&back_sentinel;
             
@@ -199,13 +226,10 @@ class Allocator {
                 }else{
                     front_sentinel = posVal;
                     back_sentinel = posVal;
-                    // std::cout << view(N - 4) << std::endl;
                 }
             }else if(back + 4 < a + N){
                 int& next_sentinel = view(back - a + 4);
                 if(next_sentinel > 0){
-                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
-                    // std::cout << posVal + next_sentinel + 8 << std::endl;
                     view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
                     front_sentinel = posVal + next_sentinel + 8;
                     back_sentinel = 0;
@@ -213,7 +237,6 @@ class Allocator {
                 }else{
                     front_sentinel = posVal;
                     back_sentinel = posVal;
-                    // std::cout << view(N - 4) << std::endl;
                 }
             }else if(back + 4 < a + N && front - 4 > a){
                 int& next_sentinel = view(back - a + 4);
@@ -231,8 +254,6 @@ class Allocator {
                     front_sentinel = 0;
                     prev_sentinel = 0;
                 }else if(next_sentinel > 0){
-                    // std::cout << view(back - a + 8 + next_sentinel) << std::endl;
-                    // std::cout << posVal + next_sentinel + 8 << std::endl;
                     view(back - a + 8 + next_sentinel) = posVal + next_sentinel + 8;
                     front_sentinel = posVal + next_sentinel + 8;
                     back_sentinel = 0;
@@ -240,12 +261,10 @@ class Allocator {
                 }else{
                     front_sentinel = posVal;
                     back_sentinel = posVal;
-                    // std::cout << view(N - 4) << std::endl;
                 }
             }else{
                 front_sentinel = posVal;
                 back_sentinel = posVal;
-                // std::cout << view(N - 4) << std::endl;
             }
             assert(valid());}
 
@@ -260,7 +279,7 @@ class Allocator {
          * <your documentation>
          */
         void destroy (pointer p) {
-            p->~T();               // this is correct
+            p->~T();
             assert(valid());}
 
         /**
